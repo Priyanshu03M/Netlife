@@ -1,0 +1,102 @@
+package com.spring.flamingo.service;
+
+import com.spring.flamingo.config.JwtUtil;
+import com.spring.flamingo.dto.*;
+import com.spring.flamingo.entity.Person;
+import com.spring.flamingo.entity.RefreshToken;
+import com.spring.flamingo.repository.PersonRepository;
+import com.spring.flamingo.repository.RefreshTokenRepository;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+public class AuthService {
+    private final PersonRepository personRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
+    private final AuthenticationManager authenticationManager;
+
+    @Value("${refresh-token-expiration}")
+    private long EXPIRATION;
+
+    public String registerUser(UserRegisterRequest userRegisterRequest) {
+        String encodedPassword = passwordEncoder.encode(userRegisterRequest.getPassword());
+        String role = userRegisterRequest.getRole();
+        if(!role.startsWith("ROLE_")) {
+            role = "ROLE_" + role;
+        }
+        Person person = Person.builder().username(userRegisterRequest.getUsername()).id(UUID.randomUUID().toString()).password(encodedPassword).role(role).createdAt(LocalDateTime.now()).build();
+        personRepository.save(person);
+        return "Person Saved";
+    }
+
+    public JwtResponse login(UserLoginRequest request) {
+
+        // 1️⃣ Create authentication token from request
+        UsernamePasswordAuthenticationToken authToken =
+                new UsernamePasswordAuthenticationToken(
+                        request.getUsername(),
+                        request.getPassword()
+                );
+
+        // 2️⃣ Authenticate (this triggers UserDetailsService + PasswordEncoder)
+        Authentication authentication = authenticationManager.authenticate(authToken);
+
+        // 3️⃣ Authentication is successful → get UserDetails
+        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+
+        JwtUser user = new JwtUser(userDetails.getUsername(), userDetails.getAuthorities());
+
+        // 4️⃣ Generate JWT and refresh Token
+        String refreshToken = generateRefreshToken(request.getUsername());
+        String accessToken = jwtUtil.generateAccessToken(user);
+        return JwtResponse.builder().accessToken(accessToken).refreshToken(refreshToken).build();
+    }
+
+    private String generateRefreshToken(String username) {
+        String token = UUID.randomUUID().toString();
+        Person person = personRepository.findByUsername(username);
+        RefreshToken refreshToken = RefreshToken.builder().token(token).person(person).expiryDate(LocalDateTime.now().plusHours(1)).build();
+        refreshTokenRepository.save(refreshToken);
+        return token;
+    }
+
+    public JwtResponse refreshToken(RefreshTokenRequest refreshTokenRequest) {
+        Optional<RefreshToken> refreshTokenOpt = refreshTokenRepository.getByToken(refreshTokenRequest.getRefreshToken());
+        if (refreshTokenOpt.isPresent() && !refreshTokenOpt.get().getExpiryDate().isBefore(LocalDateTime.now())) {
+            Person person = refreshTokenOpt.get().getPerson();
+            List<GrantedAuthority> grantedAuthorities =
+                    List.of(new SimpleGrantedAuthority(person.getRole()));
+            JwtUser user = new JwtUser(person.getUsername(), grantedAuthorities);
+            String accessToken = jwtUtil.generateAccessToken(user);
+            return JwtResponse.builder().accessToken(accessToken).refreshToken(refreshTokenOpt.get().getToken()).build();
+        }
+        return null;
+    }
+
+    @Transactional
+    public String logout(RefreshTokenRequest refreshTokenRequest) {
+        Optional<RefreshToken> refreshTokenOpt = refreshTokenRepository.getByToken(refreshTokenRequest.getRefreshToken());
+        if (refreshTokenOpt.isPresent() && !refreshTokenOpt.get().getExpiryDate().isBefore(LocalDateTime.now())) {
+            Person person = refreshTokenOpt.get().getPerson();
+            refreshTokenRepository.deleteAllByPerson(person);
+        }
+        return "User Logged out";
+    }
+}

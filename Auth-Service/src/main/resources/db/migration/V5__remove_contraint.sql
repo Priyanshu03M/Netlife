@@ -1,0 +1,2 @@
+ALTER TABLE refresh_token
+DROP CONSTRAINT refresh_token_person_id_key;

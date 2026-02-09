@@ -1,0 +1,1 @@
+ALTER TABLE person add COLUMN role varchar(50);
