@@ -35,15 +35,4 @@ public class JwtUtil {
         log.trace("JWT token generated successfully");
         return token;
     }
-
-    public Claims validateToken(String token) {
-        log.trace("Validating JWT token");
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(Keys.hmacShaKeyFor(SECRET.getBytes()))
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-        log.trace("JWT token validated successfully");
-        return claims;
-    }
 }
