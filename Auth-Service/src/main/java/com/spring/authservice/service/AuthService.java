@@ -48,22 +48,18 @@ public class AuthService {
 
     public JwtResponse login(UserLoginRequest request) {
 
-        // 1️⃣ Create authentication token from request
         UsernamePasswordAuthenticationToken authToken =
                 new UsernamePasswordAuthenticationToken(
                         request.getUsername(),
                         request.getPassword()
                 );
 
-        // 2️⃣ Authenticate (this triggers UserDetailsService + PasswordEncoder)
         Authentication authentication = authenticationManager.authenticate(authToken);
 
-        // 3️⃣ Authentication is successful → get UserDetails
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
 
         JwtUser user = new JwtUser(userDetails.getUsername(), userDetails.getAuthorities());
 
-        // 4️⃣ Generate JWT and refresh Token
         String refreshToken = generateRefreshToken(request.getUsername());
         String accessToken = jwtUtil.generateAccessToken(user);
         return JwtResponse.builder().accessToken(accessToken).refreshToken(refreshToken).build();
