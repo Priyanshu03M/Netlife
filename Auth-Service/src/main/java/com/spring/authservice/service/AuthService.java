@@ -1,11 +1,11 @@
-package com.spring.flamingo.service;
+package com.spring.authservice.service;
 
-import com.spring.flamingo.config.JwtUtil;
-import com.spring.flamingo.dto.*;
-import com.spring.flamingo.entity.Person;
-import com.spring.flamingo.entity.RefreshToken;
-import com.spring.flamingo.repository.PersonRepository;
-import com.spring.flamingo.repository.RefreshTokenRepository;
+import com.spring.authservice.config.JwtUtil;
+import com.spring.authservice.dto.*;
+import com.spring.authservice.entity.Person;
+import com.spring.authservice.entity.RefreshToken;
+import com.spring.authservice.repository.PersonRepository;
+import com.spring.authservice.repository.RefreshTokenRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;

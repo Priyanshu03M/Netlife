@@ -1,6 +1,6 @@
-package com.spring.flamingo.config;
+package com.spring.authservice.config;
 
-import com.spring.flamingo.exceptionHandling.CustomAccessDeniedHandler;
+import com.spring.authservice.exceptionHandling.CustomAccessDeniedHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -15,7 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.stereotype.Component;
-import com.spring.flamingo.exceptionHandling.CustomAuthenticationEntryPoint;
+import com.spring.authservice.exceptionHandling.CustomAuthenticationEntryPoint;
 
 @Component
 @RequiredArgsConstructor

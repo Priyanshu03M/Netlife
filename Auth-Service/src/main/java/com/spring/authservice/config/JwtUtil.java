@@ -1,6 +1,6 @@
-package com.spring.flamingo.config;
+package com.spring.authservice.config;
 
-import com.spring.flamingo.dto.JwtUser;
+import com.spring.authservice.dto.JwtUser;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;

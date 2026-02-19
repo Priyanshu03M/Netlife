@@ -1,6 +1,6 @@
-package com.spring.flamingo.repository;
+package com.spring.authservice.repository;
 
-import com.spring.flamingo.entity.Person;
+import com.spring.authservice.entity.Person;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.UUID;

@@ -1,6 +1,6 @@
-package com.spring.flamingo.exceptionHandling;
+package com.spring.authservice.exceptionHandling;
 
-import com.spring.flamingo.util.ErrorResponse;
+import com.spring.authservice.util.ErrorResponse;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

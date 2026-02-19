@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.spring</groupId>
-    <artifactId>Flamingo</artifactId>
+    <artifactId>AuthService</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>Flamingo</name>
-    <description>Flamingo</description>
+    <name>AuthService</name>
+    <description>AuthService</description>
     <url/>
     <licenses>
         <license/>

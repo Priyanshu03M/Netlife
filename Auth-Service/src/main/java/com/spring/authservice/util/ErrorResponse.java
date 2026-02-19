@@ -1,4 +1,4 @@
-package com.spring.flamingo.util;
+package com.spring.authservice.util;
 
 import lombok.Builder;
 

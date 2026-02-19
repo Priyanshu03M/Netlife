@@ -1,4 +1,4 @@
-package com.spring.flamingo.entity;
+package com.spring.authservice.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

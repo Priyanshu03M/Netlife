@@ -1,10 +1,10 @@
-package com.spring.flamingo;
+package com.spring.authservice;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class FlamingoApplicationTests {
+class AuthServiceApplicationTests {
 
     @Test
     void contextLoads() {

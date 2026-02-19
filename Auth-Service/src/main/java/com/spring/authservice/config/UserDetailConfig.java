@@ -1,7 +1,7 @@
-package com.spring.flamingo.config;
+package com.spring.authservice.config;
 
-import com.spring.flamingo.entity.Person;
-import com.spring.flamingo.repository.PersonRepository;
+import com.spring.authservice.entity.Person;
+import com.spring.authservice.repository.PersonRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;

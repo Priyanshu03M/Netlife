@@ -1,4 +1,4 @@
-package com.spring.flamingo.config;
+package com.spring.authservice.config;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -7,7 +7,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import com.spring.flamingo.exceptionHandling.CustomAuthenticationEntryPoint;
+import com.spring.authservice.exceptionHandling.CustomAuthenticationEntryPoint;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.InsufficientAuthenticationException;

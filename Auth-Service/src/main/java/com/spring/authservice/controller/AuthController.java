@@ -1,10 +1,10 @@
-package com.spring.flamingo.controller;
+package com.spring.authservice.controller;
 
-import com.spring.flamingo.dto.JwtResponse;
-import com.spring.flamingo.dto.RefreshTokenRequest;
-import com.spring.flamingo.dto.UserLoginRequest;
-import com.spring.flamingo.dto.UserRegisterRequest;
-import com.spring.flamingo.service.AuthService;
+import com.spring.authservice.dto.JwtResponse;
+import com.spring.authservice.dto.RefreshTokenRequest;
+import com.spring.authservice.dto.UserLoginRequest;
+import com.spring.authservice.dto.UserRegisterRequest;
+import com.spring.authservice.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;

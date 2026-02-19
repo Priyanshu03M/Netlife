@@ -1,4 +1,4 @@
-package com.spring.flamingo.dto;
+package com.spring.authservice.dto;
 
 import lombok.Getter;
 
