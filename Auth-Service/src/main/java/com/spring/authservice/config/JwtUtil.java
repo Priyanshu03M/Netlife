@@ -1,7 +1,6 @@
 package com.spring.authservice.config;
 
 import com.spring.authservice.dto.JwtUser;
-import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
@@ -21,7 +20,6 @@ public class JwtUtil {
     private long EXPIRATION;
 
     public String generateAccessToken(JwtUser user) {
-        log.trace("Generating JWT token for user: {}", user.username());
         String token = Jwts.builder()
                 .setSubject(user.username())
                 .claim("roles", user.authorities()
@@ -32,18 +30,6 @@ public class JwtUtil {
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION))
                 .signWith(Keys.hmacShaKeyFor(SECRET.getBytes()), SignatureAlgorithm.HS256)
                 .compact();
-        log.trace("JWT token generated successfully");
         return token;
-    }
-
-    public Claims validateToken(String token) {
-        log.trace("Validating JWT token");
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(Keys.hmacShaKeyFor(SECRET.getBytes()))
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-        log.trace("JWT token validated successfully");
-        return claims;
     }
 }

@@ -24,25 +24,18 @@ public class UserDetailConfig implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(@NonNull String username) throws UsernameNotFoundException {
-        log.trace("Loading user details for username: {}", username);
-
         Person person = personRepository.findByUsername(username);
 
         if (person == null) {
-            log.trace("User not found for username: {}", username);
             throw new UsernameNotFoundException("User not found");
         }
-
-        log.trace("User found: id={}, username={}", person.getId(), person.getUsername());
 
         List<GrantedAuthority> grantedAuthorities =
                 List.of(new SimpleGrantedAuthority(person.getRole()));
 
-        log.trace("Assigned authorities: {}", grantedAuthorities);
-
         return new User(
                 person.getUsername(),
-                person.getPassword(), // never log this 🔒
+                person.getPassword(),
                 grantedAuthorities
         );
     }

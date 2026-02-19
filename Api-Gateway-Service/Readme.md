@@ -1,24 +1,41 @@
 # Api-Gateway-Service
 
-API Gateway for the Netlife microservices setup using Spring Cloud Gateway (MVC) with Eureka service discovery.
+API Gateway for Netlife using Spring Cloud Gateway (MVC) and Eureka discovery.
 
 ## Tech Stack
 - Java 17
 - Spring Boot 4.0.2
 - Spring Cloud 2025.1.0
+- Spring Security
+- JJWT (`io.jsonwebtoken`)
 
-## Default Configuration
+## Current Configuration
 - `spring.application.name=ApiGatewayService`
 - `server.port=8765`
 - `eureka.client.service-url.defaultZone=${EUREKA_SERVER_URL}`
+- `jwt.secret=${JWT_SECRET}`
 
 ## Route Configuration
 - Route ID: `auth-service`
-- Target URI: `lb://AUTHSERVICE`
+- URI: `lb://AUTHSERVICE`
 - Predicate: `Path=/auth/**`
 
+## Security Behavior
+Public paths:
+- `/auth/login`
+- `/auth/register`
+- `/auth/pages`
+
+Protected:
+- Any other path requires a valid bearer token.
+
+Header format:
+- `Authorization: Bearer <jwt>`
+
 ## Required Environment Variables
-- `EUREKA_SERVER_URL` (example: `http://localhost:8761/eureka`)
+- `EUREKA_SERVER_URL`
+  - Example: `http://localhost:8761/eureka`
+- `JWT_SECRET`
 
 ## Run Locally
 From `Api-Gateway-Service`:
@@ -27,8 +44,11 @@ From `Api-Gateway-Service`:
 ./mvnw spring-boot:run
 ```
 
-On Windows PowerShell:
+On PowerShell:
 
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
+
+## Local URL
+- `http://localhost:8765`

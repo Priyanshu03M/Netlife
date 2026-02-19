@@ -1,6 +1,5 @@
 package com.spring.authservice.config;
 
-import com.spring.authservice.exceptionHandling.CustomAccessDeniedHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -13,9 +12,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.stereotype.Component;
-import com.spring.authservice.exceptionHandling.CustomAuthenticationEntryPoint;
 
 @Component
 @RequiredArgsConstructor
@@ -23,55 +20,29 @@ import com.spring.authservice.exceptionHandling.CustomAuthenticationEntryPoint;
 @Slf4j
 public class SecurityConfig {
 
-    private final JwtAuthFilter jwtFilter;
-    private final CustomAuthenticationEntryPoint authenticationEntryPoint;
-    private final CustomAccessDeniedHandler customAccessDeniedHandler;
-
     @Bean
     SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) {
 
-        log.trace("Configuring SecurityFilterChain");
-
         http
                 .logout(AbstractHttpConfigurer::disable)
-                .csrf(csrf -> {
-                    log.trace("Disabling CSRF");
-                    csrf.disable();
-                })
-                .sessionManagement(sm -> {
-                    log.trace("Setting session policy to STATELESS");
-                    sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS);
-                })
-                .exceptionHandling(ex -> {
-                    log.trace("Setting AuthenticationEntryPoint");
-                    ex.authenticationEntryPoint(authenticationEntryPoint);
-                    ex.accessDeniedHandler(customAccessDeniedHandler);
-                })
-                .authorizeHttpRequests(requests -> {
-                    log.trace("Configuring authorization rules");
-
-                    requests
-                            .requestMatchers("/auth/register", "/auth/login", "/auth/refresh").permitAll()
-                            .requestMatchers("/auth/pages1").hasRole("ADMIN")
-                            .requestMatchers("/auth/pages", "/auth/logout").authenticated()
-                            .anyRequest().authenticated();
-                })
+                .csrf(AbstractHttpConfigurer::disable)
+                .sessionManagement(sm ->
+                        sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .anyRequest().permitAll()
+                )
         ;
-
-        log.trace("JwtAuthFilter added before UsernamePasswordAuthenticationFilter");
 
         return http.build();
     }
 
     @Bean
     AuthenticationManager authenticationManager(AuthenticationConfiguration config) {
-        log.trace("Exposing AuthenticationManager bean");
         return config.getAuthenticationManager();
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        log.trace("Creating DelegatingPasswordEncoder");
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
 }

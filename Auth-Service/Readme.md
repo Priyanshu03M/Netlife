@@ -1,32 +1,51 @@
 # Auth-Service
 
-Authentication and authorization service for Netlife, using JWT, PostgreSQL, Flyway, and Eureka client registration.
+Authentication service for Netlife. Handles user registration, login, token refresh, and logout.
 
 ## Tech Stack
 - Java 17
 - Spring Boot 4.0.2
 - Spring Cloud 2025.1.0
+- Spring Security
 - PostgreSQL
 - Flyway
-- Spring Security + JWT
+- JJWT (`io.jsonwebtoken`)
 
-## Default Configuration
+## Current Configuration
 - `spring.application.name=AuthService`
 - `server.port=8080`
 - `eureka.client.register-with-eureka=true`
 - `eureka.client.fetch-registry=true`
 - `eureka.client.service-url.defaultZone=${EUREKA_SERVER_URL}`
+- `spring.jpa.hibernate.ddl-auto=none`
+- `spring.flyway.enabled=true`
 
 ## Required Environment Variables
 - `DB_URL`
+  - Example: `jdbc:postgresql://localhost:5432/netlife`
 - `DB_USERNAME`
 - `DB_PASSWORD`
 - `JWT_SECRET`
-- `EUREKA_SERVER_URL` (example: `http://localhost:8761/eureka`)
+- `EUREKA_SERVER_URL`
+  - Example: `http://localhost:8761/eureka`
 
 ## Token Configuration
-- Access token expiration: `jwt.expiration-ms=600000`
-- Refresh token expiration: `refresh-token-expiration=3600000`
+- Access token: `jwt.expiration-ms=600000` (10 minutes)
+- Refresh token: `refresh-token-expiration=3600000` (60 minutes)
+
+## Current Endpoints
+Base path: `/auth`
+
+- `POST /auth/register`
+- `POST /auth/login`
+- `POST /auth/refresh`
+- `POST /auth/logout`
+- `GET /auth/pages`
+- `GET /auth/pages1`
+
+## Notes
+- Current security config in this service permits all requests (`anyRequest().permitAll()`).
+- Access control is primarily enforced at `Api-Gateway-Service`.
 
 ## Run Locally
 From `Auth-Service`:
@@ -35,8 +54,11 @@ From `Auth-Service`:
 ./mvnw spring-boot:run
 ```
 
-On Windows PowerShell:
+On PowerShell:
 
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
+
+## Local URL
+- `http://localhost:8080`
