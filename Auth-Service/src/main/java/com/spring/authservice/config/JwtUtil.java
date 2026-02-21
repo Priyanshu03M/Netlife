@@ -20,7 +20,7 @@ public class JwtUtil {
     private long EXPIRATION;
 
     public String generateAccessToken(JwtUser user) {
-        String token = Jwts.builder()
+        return Jwts.builder()
                 .setSubject(user.username())
                 .claim("roles", user.authorities()
                         .stream()
@@ -30,6 +30,5 @@ public class JwtUtil {
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION))
                 .signWith(Keys.hmacShaKeyFor(SECRET.getBytes()), SignatureAlgorithm.HS256)
                 .compact();
-        return token;
     }
 }
