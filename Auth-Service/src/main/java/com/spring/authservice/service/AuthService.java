@@ -4,6 +4,7 @@ import com.spring.authservice.config.JwtUtil;
 import com.spring.authservice.dto.*;
 import com.spring.authservice.entity.Person;
 import com.spring.authservice.entity.RefreshToken;
+import com.spring.authservice.exception.InvalidRefreshTokenException;
 import com.spring.authservice.repository.PersonRepository;
 import com.spring.authservice.repository.RefreshTokenRepository;
 import jakarta.transaction.Transactional;
@@ -36,6 +37,10 @@ public class AuthService {
     private long EXPIRATION;
 
     public String registerUser(UserRegisterRequest userRegisterRequest) {
+        if (personRepository.findByUsername(userRegisterRequest.getUsername()) != null) {
+            throw new IllegalStateException("Username already exists");
+        }
+
         String encodedPassword = passwordEncoder.encode(userRegisterRequest.getPassword());
         String role = userRegisterRequest.getRole();
         if(!role.startsWith("ROLE_")) {
@@ -68,6 +73,9 @@ public class AuthService {
     private String generateRefreshToken(String username) {
         String token = UUID.randomUUID().toString();
         Person person = personRepository.findByUsername(username);
+        if (person == null) {
+            throw new IllegalStateException("User not found while creating refresh token");
+        }
         RefreshToken refreshToken = RefreshToken.builder().token(token).person(person).expiryDate(LocalDateTime.now().plusHours(1)).build();
         refreshTokenRepository.save(refreshToken);
         return token;
@@ -83,7 +91,7 @@ public class AuthService {
             String accessToken = jwtUtil.generateAccessToken(user);
             return JwtResponse.builder().accessToken(accessToken).refreshToken(refreshTokenOpt.get().getToken()).build();
         }
-        return null;
+        throw new InvalidRefreshTokenException("Refresh token is invalid or expired");
     }
 
     @Transactional
@@ -92,7 +100,8 @@ public class AuthService {
         if (refreshTokenOpt.isPresent() && !refreshTokenOpt.get().getExpiryDate().isBefore(LocalDateTime.now())) {
             Person person = refreshTokenOpt.get().getPerson();
             refreshTokenRepository.deleteAllByPerson(person);
+            return "User Logged out";
         }
-        return "User Logged out";
+        throw new InvalidRefreshTokenException("Refresh token is invalid or expired");
     }
 }
