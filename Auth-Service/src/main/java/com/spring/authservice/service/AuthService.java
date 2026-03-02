@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Value;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -37,8 +38,15 @@ public class AuthService {
     private long EXPIRATION;
 
     public String registerUser(UserRegisterRequest userRegisterRequest) {
-        if (personRepository.findByUsername(userRegisterRequest.getUsername()) != null) {
+        String username = userRegisterRequest.getUsername().trim();
+        String email = userRegisterRequest.getEmail().trim().toLowerCase(Locale.ROOT);
+
+        if (personRepository.existsByUsername(username)) {
             throw new IllegalStateException("Username already exists");
+        }
+
+        if (personRepository.existsByEmail(email)) {
+            throw new IllegalStateException("Email already exists");
         }
 
         String encodedPassword = passwordEncoder.encode(userRegisterRequest.getPassword());
@@ -46,7 +54,14 @@ public class AuthService {
         if(!role.startsWith("ROLE_")) {
             role = "ROLE_" + role;
         }
-        Person person = Person.builder().username(userRegisterRequest.getUsername()).id(UUID.randomUUID().toString()).password(encodedPassword).role(role).createdAt(LocalDateTime.now()).build();
+        Person person = Person.builder()
+                .id(UUID.randomUUID().toString())
+                .username(username)
+                .email(email)
+                .password(encodedPassword)
+                .role(role)
+                .createdAt(LocalDateTime.now())
+                .build();
         personRepository.save(person);
         return "Person Saved";
     }

@@ -1,0 +1,1 @@
+ALTER TABLE person add COLUMN email varchar(100);

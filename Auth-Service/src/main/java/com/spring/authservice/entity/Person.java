@@ -15,6 +15,7 @@ public class Person {
     @Id
     private String id;
     private String username;
+    private String email;
     private String password;
     @Column(name = "created_at")
     private LocalDateTime createdAt;
