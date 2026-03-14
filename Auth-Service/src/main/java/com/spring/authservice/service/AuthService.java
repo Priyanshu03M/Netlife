@@ -42,11 +42,11 @@ public class AuthService {
         String email = userRegisterRequest.getEmail().trim().toLowerCase(Locale.ROOT);
 
         if (personRepository.existsByUsername(username)) {
-            throw new IllegalStateException("Username already exists");
+            throw new IllegalStateException("Username already exists, Try another");
         }
 
         if (personRepository.existsByEmail(email)) {
-            throw new IllegalStateException("Email already exists");
+            throw new IllegalStateException("Email already exists. Try login");
         }
 
         String encodedPassword = passwordEncoder.encode(userRegisterRequest.getPassword());
