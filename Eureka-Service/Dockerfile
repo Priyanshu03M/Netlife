@@ -14,5 +14,5 @@ WORKDIR /app
 ENV JAVA_OPTS=""
 COPY --from=build /app/target/*.jar /app/app.jar
 
-EXPOSE 8081
+EXPOSE 8761
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]
