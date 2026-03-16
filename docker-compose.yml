@@ -27,6 +27,23 @@ services:
     depends_on:
       - db
       - eureka-server
+  video-upload-service:
+    build: ./Video-Upload-Service
+    ports:
+      - "8082:8081"
+    environment:
+      DB_URL: ${DB_URL}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
+      MINIO_URL: http://minio:9000
+      MINIO_ACCESSKEY: ${MINIO_ACCESSKEY:-minioadmin}
+      MINIO_SECRETKEY: ${MINIO_SECRETKEY:-minioadmin123}
+      MINIO_BUCKET: ${MINIO_BUCKET:-videos}
+    depends_on:
+      - db
+      - eureka-server
+      - minio
 
   db:
     image: postgres:16
@@ -36,6 +53,20 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    restart: always
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
 
 volumes:
   postgres_data:
+  minio_data:
