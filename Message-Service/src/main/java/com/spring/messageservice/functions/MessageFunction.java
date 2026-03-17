@@ -19,4 +19,11 @@ public class MessageFunction {
             return accountMsgDto;
         };
     }
+    @Bean
+    public Function<AccountMsgDto, AccountMsgDto> sms() {
+        return accountMsgDto -> {
+            logger.info("Sending sms {}", accountMsgDto.name);
+            return accountMsgDto;
+        };
+    }
 }
