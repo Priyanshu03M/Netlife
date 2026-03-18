@@ -30,7 +30,6 @@ public class UploadResponseDto {
                 .size(uploadVideoDto.getSize())
                 .userId(uploadVideoDto.getUserId())
                 .originalFilename(uploadVideoDto.getOriginalFilename())
-                .uploadedAt(uploadedAt)
-                .build();
+                .uploadedAt(uploadedAt).build();
     }
 }
