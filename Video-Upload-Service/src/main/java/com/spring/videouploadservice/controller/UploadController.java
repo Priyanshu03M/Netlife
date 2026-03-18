@@ -24,8 +24,7 @@ public class UploadController {
             @RequestParam("description") String description,
             @RequestHeader("X-User-Id") String userId
     ) {
-
-        UploadVideoDto uploadVideoDto = UploadVideoDto.builder().userId(userId).file(file).title(title).description(description).build();
+        UploadVideoDto uploadVideoDto = UploadVideoDto.of(file, title, description, userId);
 
         try {
             UploadResponseDto response = uploadService.upload(uploadVideoDto);

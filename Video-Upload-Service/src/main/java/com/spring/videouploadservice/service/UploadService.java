@@ -26,15 +26,16 @@ public class UploadService {
     private String bucketName;
 
     public UploadResponseDto upload(UploadVideoDto uploadVideoDto) throws Exception {
-        if(uploadVideoDto.getFile() == null || uploadVideoDto.getFile().isEmpty()) {
+        if(!uploadVideoDto.hasFile()) {
             throw new IllegalArgumentException("Upload File is Empty");
         }
 
-        if(uploadVideoDto.getContentType() == null || !uploadVideoDto.getContentType().startsWith("video/")) {
+        if(!uploadVideoDto.isVideoFile()) {
             throw new IllegalArgumentException("Upload File Type Not Supported");
         }
 
         String objectKey = buildObjectKey(uploadVideoDto.getUserId(), uploadVideoDto.getOriginalFilename());
+        LocalDateTime uploadedAt = LocalDateTime.now();
 
         try {
             ensureBucketExists(bucketName);
@@ -43,7 +44,7 @@ public class UploadService {
                     PutObjectArgs.builder()
                             .bucket(bucketName)
                             .object(objectKey)
-                            .stream(uploadVideoDto.getFile().getInputStream(), uploadVideoDto.getFile().getSize(), -1)
+                            .stream(uploadVideoDto.getFile().getInputStream(), uploadVideoDto.getSize(), -1)
                             .contentType(uploadVideoDto.getContentType())
                             .build()
             );
@@ -59,24 +60,15 @@ public class UploadService {
                 .bucketUrl(bucketName)
                 .objectKey(objectKey)
                 .duration(null)
-                .size(uploadVideoDto.getFile().getSize())
+                .size(uploadVideoDto.getSize())
                 .format(uploadVideoDto.getContentType())
                 .status("UPLOADED")
-                .createdAt(LocalDateTime.now())
+                .createdAt(uploadedAt)
                 .build();
 
         videoMetadataRepository.save(videoMetadata);
 
-        return UploadResponseDto.builder()
-                .status("UPLOADED")
-                .bucket(bucketName)
-                .objectKey(objectKey)
-                .title(uploadVideoDto.getTitle())
-                .description(uploadVideoDto.getDescription())
-                .contentType(uploadVideoDto.getContentType())
-                .size(uploadVideoDto.getFile().getSize())
-                .userId(uploadVideoDto.getUserId())
-                .build();
+        return UploadResponseDto.from(bucketName, objectKey, uploadVideoDto, "UPLOADED", uploadedAt);
     }
 
     private void ensureBucketExists(String bucketName) throws Exception {
