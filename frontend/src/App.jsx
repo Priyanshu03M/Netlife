@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { API_ROUTES } from './apiRoutes';
 import RegisterForm from './RegisterForm.jsx';
 import LoginForm from './LoginForm.jsx';
@@ -9,25 +9,52 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(
     Boolean(window.localStorage.getItem('accessToken'))
   );
+  const [pathname, setPathname] = useState(window.location.pathname);
   const isRegister = mode === 'register';
 
+  useEffect(() => {
+    const handlePopState = () => {
+      setPathname(window.location.pathname);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  const navigate = (nextPath) => {
+    if (window.location.pathname === nextPath) {
+      setPathname(nextPath);
+      return;
+    }
+
+    window.history.pushState({}, '', nextPath);
+    setPathname(nextPath);
+  };
+
   const handleLogout = async () => {
+    const accessToken = window.localStorage.getItem('accessToken');
     const refreshToken = window.localStorage.getItem('refreshToken');
     if (!refreshToken) {
-      alert('No refresh token found. You may already be logged out.');
+      window.localStorage.removeItem('accessToken');
+      window.localStorage.removeItem('refreshToken');
+      window.localStorage.removeItem('username');
+      setIsLoggedIn(false);
+      navigate('/');
       return;
     }
 
     try {
       const response = await fetch(API_ROUTES.logout, {
-        headers: accessToken
-          ? {
-              Authorization: `Bearer ${accessToken}`
-            }
-          : undefined,
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(accessToken
+            ? {
+                Authorization: `Bearer ${accessToken}`
+              }
+            : {})
         },
         body: JSON.stringify({ refreshToken })
       });
@@ -36,7 +63,9 @@ function App() {
 
       window.localStorage.removeItem('accessToken');
       window.localStorage.removeItem('refreshToken');
+      window.localStorage.removeItem('username');
       setIsLoggedIn(false);
+      navigate('/');
 
       if (!response.ok) {
         alert(text || 'Logout failed.');
@@ -52,6 +81,21 @@ function App() {
     setMode(nextMode);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  const handleLoginSuccess = () => {
+    setIsLoggedIn(true);
+    navigate('/');
+  };
+
+  if (isLoggedIn) {
+    return (
+      <HomePage
+        pathname={pathname}
+        onNavigate={navigate}
+        onLogout={handleLogout}
+      />
+    );
+  }
 
   return (
     <div className="app-root">
@@ -126,11 +170,9 @@ function App() {
           {isRegister ? (
             <RegisterForm />
           ) : (
-            <LoginForm onLoginSuccess={() => setIsLoggedIn(true)} />
+            <LoginForm onLoginSuccess={handleLoginSuccess} />
           )}
         </section>
-
-        <HomePage />
       </main>
     </div>
   );

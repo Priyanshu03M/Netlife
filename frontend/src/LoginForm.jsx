@@ -94,6 +94,7 @@ function LoginForm({ onLoginSuccess }) {
       if (refreshToken) {
         window.localStorage.setItem('refreshToken', refreshToken);
       }
+      window.localStorage.setItem('username', values.username.trim());
 
       setServerMessage('Login successful.');
       if (typeof onLoginSuccess === 'function') {

@@ -5,5 +5,6 @@ export const API_ROUTES = {
   login: `${API_BASE_URL}/auth/login`,
   logout: `${API_BASE_URL}/auth/logout`,
   pages: `${API_BASE_URL}/auth/pages`,
+  videos: `${API_BASE_URL}/videos`,
 };
 
