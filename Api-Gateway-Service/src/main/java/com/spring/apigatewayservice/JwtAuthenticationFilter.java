@@ -65,12 +65,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     );
             SecurityContextHolder.getContext().setAuthentication(auth);
             request.setAttribute("X-User-Id", username);
-            filterChain.doFilter(request, response);
         } catch (JwtException e) {
             SecurityContextHolder.clearContext();
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("Invalid Token");
         }
+        filterChain.doFilter(request, response);
     }
 
     private Claims validateToken(String token) {
