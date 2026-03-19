@@ -1,30 +1,89 @@
 package com.spring.videouploadservice.service;
 
+import com.spring.videouploadservice.dto.VideoPageResponseDto;
+import com.spring.videouploadservice.dto.VideoSummaryDto;
 import com.spring.videouploadservice.dto.UploadResponseDto;
 import com.spring.videouploadservice.dto.UploadVideoDto;
 import com.spring.videouploadservice.entity.VideoMetadata;
 import com.spring.videouploadservice.repository.VideoMetadataRepository;
 import io.minio.BucketExistsArgs;
+import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.ListObjectsArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.Result;
 import io.minio.errors.*;
+import io.minio.http.Method;
+import io.minio.messages.Item;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class UploadService {
+    private static final int VIDEO_PAGE_SIZE = 10;
     private final MinioClient minioClient;
     private final VideoMetadataRepository videoMetadataRepository;
 
     @Value("${minio.bucket}")
     private String bucketName;
+
+    public VideoPageResponseDto listVideos(String cursor) throws Exception {
+        ensureBucketExists(bucketName);
+
+        List<VideoSummaryDto> videos = new ArrayList<>();
+        String normalizedCursor = normalizeCursor(cursor);
+
+        ListObjectsArgs.Builder listArgsBuilder = ListObjectsArgs.builder()
+                .bucket(bucketName)
+                .recursive(true)
+                .maxKeys(VIDEO_PAGE_SIZE + 1);
+
+        if (normalizedCursor != null) {
+            listArgsBuilder.startAfter(normalizedCursor);
+        }
+
+        Iterable<Result<Item>> results = minioClient.listObjects(listArgsBuilder.build());
+
+        boolean hasMore = false;
+        for (Result<Item> result : results) {
+            Item item = result.get();
+            if (item.isDir()) {
+                continue;
+            }
+
+            if (videos.size() == VIDEO_PAGE_SIZE) {
+                hasMore = true;
+                break;
+            }
+
+            videos.add(VideoSummaryDto.builder()
+                    .bucket(bucketName)
+                    .objectKey(item.objectName())
+                    .size(item.size())
+                    .lastModified(item.lastModified().toOffsetDateTime())
+                    .url(buildObjectUrl(item.objectName()))
+                    .build());
+        }
+
+        String nextCursor = hasMore ? videos.get(videos.size() - 1).getObjectKey() : null;
+
+        return VideoPageResponseDto.builder()
+                .videos(videos)
+                .nextCursor(nextCursor)
+                .limit(VIDEO_PAGE_SIZE)
+                .hasMore(hasMore)
+                .build();
+    }
 
     public UploadResponseDto upload(UploadVideoDto uploadVideoDto) throws Exception {
         validateUpload(uploadVideoDto);
@@ -131,5 +190,25 @@ public class UploadService {
         } catch (Exception cleanupException) {
             throw new IllegalStateException("Video uploaded but cleanup failed after metadata persistence error", cleanupException);
         }
+    }
+
+    private String buildObjectUrl(String objectKey) throws Exception {
+        return minioClient.getPresignedObjectUrl(
+                GetPresignedObjectUrlArgs.builder()
+                        .method(Method.GET)
+                        .bucket(bucketName)
+                        .object(objectKey)
+                        .expiry(1, TimeUnit.DAYS)
+                        .build()
+        );
+    }
+
+    private String normalizeCursor(String cursor) {
+        if (cursor == null) {
+            return null;
+        }
+
+        String trimmed = cursor.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

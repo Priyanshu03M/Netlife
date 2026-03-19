@@ -1,5 +1,6 @@
 package com.spring.videouploadservice.controller;
 
+import com.spring.videouploadservice.dto.VideoPageResponseDto;
 import com.spring.videouploadservice.dto.UploadResponseDto;
 import com.spring.videouploadservice.dto.UploadVideoDto;
 import com.spring.videouploadservice.service.UploadService;
@@ -14,6 +15,18 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/videos")
 public class UploadController {
     private final UploadService uploadService;
+
+    @GetMapping
+    public ResponseEntity<?> listVideos(@RequestParam(value = "cursor", required = false) String cursor) {
+        try {
+            VideoPageResponseDto response = uploadService.listVideos(cursor);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to fetch videos");
+        }
+    }
 
     @PostMapping("/upload")
     public ResponseEntity<?> upload(
