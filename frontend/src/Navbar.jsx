@@ -4,6 +4,7 @@ function Navbar({
   searchTerm,
   onSearchChange,
   onHomeClick,
+  onUploadClick,
   onLogout,
   avatarLabel
 }) {
@@ -30,6 +31,13 @@ function Navbar({
       </div>
 
       <div className="navbar-actions">
+        <button
+          type="button"
+          className="upload-button"
+          onClick={onUploadClick}
+        >
+          Upload
+        </button>
         <div className="avatar-badge" aria-hidden="true">
           {avatarLabel}
         </div>

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { apiRequest, ApiError } from './api/client';
 import { API_ROUTES } from './apiRoutes';
+import { saveSession } from './auth/session';
 
 const initialValues = {
   username: '',
@@ -56,7 +58,7 @@ function LoginForm({ onLoginSuccess }) {
     setSubmitting(true);
 
     try {
-      const response = await fetch(API_ROUTES.login, {
+      const body = await apiRequest(API_ROUTES.login, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -66,43 +68,26 @@ function LoginForm({ onLoginSuccess }) {
           password: values.password
         })
       });
+      const { accessToken, refreshToken, userId, id } = body || {};
 
-      let body = null;
-      let message = '';
-
-      try {
-        const contentType = response.headers.get('content-type') || '';
-        if (contentType.includes('application/json')) {
-          body = await response.json();
-          message = body?.message || '';
-        } else {
-          message = await response.text();
-        }
-      } catch {
-        // ignore parse errors and fall back to default messages
-      }
-
-      if (!response.ok) {
-        setServerMessage(message || 'Login failed.');
-        return;
-      }
-
-      const { accessToken, refreshToken } = body || {};
-      if (accessToken) {
-        window.localStorage.setItem('accessToken', accessToken);
-      }
-      if (refreshToken) {
-        window.localStorage.setItem('refreshToken', refreshToken);
-      }
-      window.localStorage.setItem('username', values.username.trim());
+      saveSession({
+        accessToken,
+        refreshToken,
+        username: values.username.trim(),
+        userId: userId || id || ''
+      });
 
       setServerMessage('Login successful.');
       if (typeof onLoginSuccess === 'function') {
-        onLoginSuccess({ accessToken, refreshToken });
+        onLoginSuccess({ accessToken, refreshToken, userId: userId || id || '' });
       }
       setValues(initialValues);
     } catch (err) {
-      setServerMessage('Unable to connect to server. Check backend.');
+      if (err instanceof ApiError) {
+        setServerMessage(err.message || 'Login failed.');
+      } else {
+        setServerMessage('Unable to connect to server. Check backend.');
+      }
     } finally {
       setSubmitting(false);
     }

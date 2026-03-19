@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { API_ROUTES } from './apiRoutes';
+import React, { useMemo, useState } from 'react';
+import { getAvatarLabel, getSession } from './auth/session';
+import { useVideos } from './hooks/useVideos';
 import Navbar from './Navbar.jsx';
 import Sidebar from './Sidebar.jsx';
 import VideoCard from './VideoCard.jsx';
+import UploadModal from './UploadModal.jsx';
 
 function formatViews(value) {
   if (typeof value !== 'number' || Number.isNaN(value)) {
@@ -44,80 +46,47 @@ function formatTimeAgo(dateString) {
   return `${amount} ${matchedUnit.label}${amount === 1 ? '' : 's'} ago`;
 }
 
-function getInitials() {
-  const username = window.localStorage.getItem('username');
-  if (username) {
-    return username.slice(0, 2).toUpperCase();
+function getVideoErrorContent(error) {
+  if (!error) {
+    return {
+      title: 'Unable to load videos',
+      description: 'An unknown error occurred while loading the feed.'
+    };
   }
 
-  return 'NL';
+  if (error.code === 'UNAUTHORIZED') {
+    return {
+      title: 'Session expired',
+      description: error.message || 'Please log in again to continue.'
+    };
+  }
+
+  if (error.code === 'NETWORK_ERROR') {
+    return {
+      title: 'Network error',
+      description: error.message || 'Check your connection and backend availability.'
+    };
+  }
+
+  if (error.code === 'MALFORMED_DATA') {
+    return {
+      title: 'Invalid video data',
+      description: error.message || 'The backend returned malformed video data.'
+    };
+  }
+
+  return {
+    title: 'Unable to load videos',
+    description: error.message || 'The video feed could not be loaded.'
+  };
 }
 
 function HomePage({ pathname, onNavigate, onLogout }) {
-  const [videos, setVideos] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    const loadVideos = async () => {
-      setLoading(true);
-      setError('');
-
-      try {
-        const accessToken = window.localStorage.getItem('accessToken');
-        const response = await fetch(API_ROUTES.videos, {
-          headers: {
-            ...(accessToken
-              ? {
-                  Authorization: `Bearer ${accessToken}`
-                }
-              : {})
-          }
-        });
-
-        if (!response.ok) {
-          let message = 'Unable to load videos.';
-
-          try {
-            const contentType = response.headers.get('content-type') || '';
-            if (contentType.includes('application/json')) {
-              const body = await response.json();
-              message = body?.message || message;
-            } else {
-              message = (await response.text()) || message;
-            }
-          } catch {
-            // Ignore parsing issues and use the default message.
-          }
-
-          throw new Error(message);
-        }
-
-        const data = await response.json();
-        if (!isCancelled) {
-          setVideos(Array.isArray(data) ? data : []);
-        }
-      } catch (err) {
-        if (!isCancelled) {
-          setError(err.message || 'Unable to load videos.');
-          setVideos([]);
-        }
-      } finally {
-        if (!isCancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadVideos();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const { videos, loading, error, reload } = useVideos();
+  const session = getSession();
+  const videoErrorContent = getVideoErrorContent(error);
 
   const filteredVideos = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -148,8 +117,9 @@ function HomePage({ pathname, onNavigate, onLogout }) {
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         onHomeClick={() => onNavigate('/')}
+        onUploadClick={() => setIsUploadOpen(true)}
         onLogout={onLogout}
-        avatarLabel={getInitials()}
+        avatarLabel={getAvatarLabel(session.username)}
       />
       <div className="shell-body">
         <Sidebar pathname={pathname} onNavigate={onNavigate} />
@@ -206,8 +176,19 @@ function HomePage({ pathname, onNavigate, onLogout }) {
                 </section>
               ) : error ? (
                 <section className="status-panel">
-                  <h2 className="status-title">Unable to load videos</h2>
-                  <p className="status-text">{error}</p>
+                  <h2 className="status-title">{videoErrorContent.title}</h2>
+                  <p className="status-text">{videoErrorContent.description}</p>
+                  {error.code !== 'UNAUTHORIZED' ? (
+                    <button
+                      type="button"
+                      className="primary-button"
+                      onClick={() => {
+                        reload();
+                      }}
+                    >
+                      Retry
+                    </button>
+                  ) : null}
                 </section>
               ) : filteredVideos.length === 0 ? (
                 <section className="status-panel">
@@ -235,6 +216,14 @@ function HomePage({ pathname, onNavigate, onLogout }) {
           )}
         </main>
       </div>
+      <UploadModal
+        isOpen={isUploadOpen}
+        onClose={() => setIsUploadOpen(false)}
+        onUploadSuccess={async () => {
+          setIsUploadOpen(false);
+          await reload();
+        }}
+      />
     </div>
   );
 }

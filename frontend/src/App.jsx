@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
+import { apiRequest } from './api/client';
 import { API_ROUTES } from './apiRoutes';
+import { clearSession, hasSession, getSession } from './auth/session';
 import RegisterForm from './RegisterForm.jsx';
 import LoginForm from './LoginForm.jsx';
 import HomePage from './HomePage.jsx';
 
 function App() {
   const [mode, setMode] = useState('register');
-  const [isLoggedIn, setIsLoggedIn] = useState(
-    Boolean(window.localStorage.getItem('accessToken'))
-  );
+  const [isLoggedIn, setIsLoggedIn] = useState(hasSession());
   const [pathname, setPathname] = useState(window.location.pathname);
   const isRegister = mode === 'register';
 
@@ -34,45 +34,31 @@ function App() {
   };
 
   const handleLogout = async () => {
-    const accessToken = window.localStorage.getItem('accessToken');
-    const refreshToken = window.localStorage.getItem('refreshToken');
+    const { refreshToken } = getSession();
     if (!refreshToken) {
-      window.localStorage.removeItem('accessToken');
-      window.localStorage.removeItem('refreshToken');
-      window.localStorage.removeItem('username');
+      clearSession();
       setIsLoggedIn(false);
       navigate('/');
       return;
     }
 
     try {
-      const response = await fetch(API_ROUTES.logout, {
+      const response = await apiRequest(API_ROUTES.logout, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(accessToken
-            ? {
-                Authorization: `Bearer ${accessToken}`
-              }
-            : {})
         },
         body: JSON.stringify({ refreshToken })
       });
-
-      const text = await response.text();
-
-      window.localStorage.removeItem('accessToken');
-      window.localStorage.removeItem('refreshToken');
-      window.localStorage.removeItem('username');
+      clearSession();
       setIsLoggedIn(false);
       navigate('/');
 
-      if (!response.ok) {
-        alert(text || 'Logout failed.');
-      } else {
-        alert(text || 'User Logged out');
-      }
+      alert(response?.message || 'User logged out');
     } catch (err) {
+      clearSession();
+      setIsLoggedIn(false);
+      navigate('/');
       alert('Unable to logout. Check backend.');
     }
   };

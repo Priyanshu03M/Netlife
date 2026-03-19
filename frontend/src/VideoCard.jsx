@@ -1,5 +1,20 @@
 import React from 'react';
 
+/**
+ * @param {{
+ *   video: {
+ *     id: string,
+ *     title: string,
+ *     channelName: string,
+ *     thumbnailUrl?: string,
+ *     views: number,
+ *     createdAt: string
+ *   },
+ *   viewLabel: string,
+ *   timeAgoLabel: string,
+ *   onOpen: () => void
+ * }} props
+ */
 function VideoCard({ video, viewLabel, timeAgoLabel, onOpen }) {
   return (
     <article className="video-card">
