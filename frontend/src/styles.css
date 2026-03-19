@@ -468,6 +468,12 @@ body {
   gap: 22px 18px;
 }
 
+.feed-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 28px;
+}
+
 .video-card {
   background: transparent;
 }

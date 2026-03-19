@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useDeferredValue, useState } from 'react';
 import { getAvatarLabel, getSession } from './auth/session';
 import { useVideos } from './hooks/useVideos';
 import Navbar from './Navbar.jsx';
@@ -84,25 +84,21 @@ function getVideoErrorContent(error) {
 function HomePage({ pathname, onNavigate, onLogout }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const { videos, loading, error, reload } = useVideos();
+  const deferredSearchTerm = useDeferredValue(searchTerm.trim());
+  const {
+    videos,
+    loading,
+    loadingMore,
+    error,
+    hasMore,
+    reload,
+    loadMore
+  } = useVideos({
+    query: deferredSearchTerm,
+    limit: 10
+  });
   const session = getSession();
   const videoErrorContent = getVideoErrorContent(error);
-
-  const filteredVideos = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-    if (!query) {
-      return videos;
-    }
-
-    return videos.filter((video) => {
-      const haystack = [video.title, video.description, video.channelName]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-
-      return haystack.includes(query);
-    });
-  }, [searchTerm, videos]);
 
   const selectedVideoId = pathname.startsWith('/watch/')
     ? pathname.replace('/watch/', '')
@@ -190,27 +186,43 @@ function HomePage({ pathname, onNavigate, onLogout }) {
                     </button>
                   ) : null}
                 </section>
-              ) : filteredVideos.length === 0 ? (
+              ) : videos.length === 0 ? (
                 <section className="status-panel">
                   <h2 className="status-title">No videos found</h2>
                   <p className="status-text">
-                    {videos.length === 0
-                      ? 'The backend returned an empty list.'
-                      : 'Try a different search term.'}
+                    {deferredSearchTerm
+                      ? `No videos matched "${deferredSearchTerm}".`
+                      : 'The backend returned an empty list.'}
                   </p>
                 </section>
               ) : (
-                <section className="video-grid">
-                  {filteredVideos.map((video) => (
-                    <VideoCard
-                      key={video.id}
-                      video={video}
-                      viewLabel={formatViews(video.views)}
-                      timeAgoLabel={formatTimeAgo(video.createdAt)}
-                      onOpen={() => onNavigate(`/watch/${video.id}`)}
-                    />
-                  ))}
-                </section>
+                <>
+                  <section className="video-grid">
+                    {videos.map((video) => (
+                      <VideoCard
+                        key={video.id}
+                        video={video}
+                        viewLabel={formatViews(video.views)}
+                        timeAgoLabel={formatTimeAgo(video.createdAt)}
+                        onOpen={() => onNavigate(`/watch/${video.id}`)}
+                      />
+                    ))}
+                  </section>
+                  {hasMore ? (
+                    <div className="feed-actions">
+                      <button
+                        type="button"
+                        className="primary-button"
+                        onClick={() => {
+                          loadMore();
+                        }}
+                        disabled={loadingMore}
+                      >
+                        {loadingMore ? 'Loading more...' : 'Load more'}
+                      </button>
+                    </div>
+                  ) : null}
+                </>
               )}
             </>
           )}

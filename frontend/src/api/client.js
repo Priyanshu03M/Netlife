@@ -45,6 +45,10 @@ async function parseResponseBody(response) {
   return text || null;
 }
 
+function isApiEnvelope(payload) {
+  return Boolean(payload) && typeof payload === 'object' && 'success' in payload && 'data' in payload;
+}
+
 function getStatusCode(status) {
   if (status === 401) {
     return {
@@ -126,24 +130,38 @@ export async function apiRequest(url, options = {}) {
 
   if (!response.ok) {
     const statusMeta = getStatusCode(response.status);
+    const apiError = isApiEnvelope(payload) ? payload.error : null;
     const message = typeof payload === 'string'
       ? payload
-      : payload?.message || statusMeta.message;
+      : apiError?.message || payload?.message || statusMeta.message;
 
     console.error('[apiRequest] Request failed', {
       url,
       method: fetchOptions.method || 'GET',
       status: response.status,
-      code: statusMeta.code,
+      code: apiError?.code || statusMeta.code,
       payload
     });
 
     throw new ApiError(message, {
       status: response.status,
-      code: statusMeta.code,
+      code: apiError?.code || statusMeta.code,
       kind: statusMeta.kind,
       details: payload
     });
+  }
+
+  if (isApiEnvelope(payload)) {
+    if (!payload.success) {
+      throw new ApiError(payload.error?.message || 'The request could not be completed.', {
+        status: response.status,
+        code: payload.error?.code || 'REQUEST_FAILED',
+        kind: 'api',
+        details: payload
+      });
+    }
+
+    return payload.data;
   }
 
   return payload;

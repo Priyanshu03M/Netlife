@@ -7,7 +7,7 @@ function isIsoDateString(value) {
   }
 
   const isoDatePattern =
-    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?$/;
 
   return isoDatePattern.test(value) && !Number.isNaN(new Date(value).getTime());
 }
@@ -74,21 +74,17 @@ function extractCollection(payload) {
   if (Array.isArray(payload)) {
     return {
       items: payload,
-      nextCursor: null
+      nextCursor: null,
+      hasMore: false
     };
   }
 
   if (payload && typeof payload === 'object') {
-    const items = Array.isArray(payload.items)
-      ? payload.items
-      : Array.isArray(payload.videos)
-        ? payload.videos
-        : null;
-
-    if (items) {
+    if (Array.isArray(payload.items)) {
       return {
-        items,
-        nextCursor: typeof payload.nextCursor === 'string' ? payload.nextCursor : null
+        items: payload.items,
+        nextCursor: typeof payload.nextCursor === 'string' ? payload.nextCursor : null,
+        hasMore: typeof payload.hasMore === 'boolean' ? payload.hasMore : false
       };
     }
   }
@@ -100,16 +96,24 @@ function extractCollection(payload) {
   });
 }
 
-export async function fetchVideos(token, cursor = '') {
+export async function fetchVideos(token, { cursor = '', query = '', limit } = {}) {
   const url = new URL(API_ROUTES.videos);
   if (cursor) {
     url.searchParams.set('cursor', cursor);
+  }
+  if (query) {
+    url.searchParams.set('query', query);
+  }
+  if (typeof limit === 'number' && Number.isFinite(limit)) {
+    url.searchParams.set('limit', String(limit));
   }
 
   console.debug('[videos] Fetching videos', {
     endpoint: API_ROUTES.videos,
     requestUrl: url.toString(),
-    cursor: cursor || null
+    cursor: cursor || null,
+    query: query || null,
+    limit: typeof limit === 'number' ? limit : null
   });
 
   const payload = await apiRequest(url.toString(), {
@@ -122,14 +126,14 @@ export async function fetchVideos(token, cursor = '') {
     payload
   });
 
-  const { items, nextCursor } = extractCollection(payload);
-  const videos = [];
+  const { items, nextCursor, hasMore } = extractCollection(payload);
+  const normalizedItems = [];
   let rejectedCount = 0;
 
   items.forEach((item) => {
     const normalized = normalizeVideo(item);
     if (normalized) {
-      videos.push(normalized);
+      normalizedItems.push(normalized);
     } else {
       rejectedCount += 1;
     }
@@ -139,7 +143,7 @@ export async function fetchVideos(token, cursor = '') {
     console.warn(`Rejected ${rejectedCount} invalid video item(s) from GET /videos.`);
   }
 
-  if (items.length > 0 && videos.length === 0) {
+  if (items.length > 0 && normalizedItems.length === 0) {
     throw new ApiError('Malformed video response: every video item was rejected by validation.', {
       code: 'MALFORMED_DATA',
       kind: 'validation',
@@ -150,14 +154,18 @@ export async function fetchVideos(token, cursor = '') {
   console.debug('[videos] Normalized videos result', {
     requestUrl: url.toString(),
     receivedCount: items.length,
-    acceptedCount: videos.length,
+    acceptedCount: normalizedItems.length,
     rejectedCount,
-    nextCursor
+    nextCursor,
+    limit: typeof payload?.limit === 'number' ? payload.limit : null,
+    hasMore
   });
 
   return {
-    videos,
-    nextCursor
+    items: normalizedItems,
+    nextCursor,
+    limit: typeof payload?.limit === 'number' ? payload.limit : null,
+    hasMore
   };
 }
 
