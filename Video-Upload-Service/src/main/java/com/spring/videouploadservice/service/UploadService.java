@@ -28,7 +28,7 @@ public class UploadService {
     public UploadResponseDto upload(UploadVideoDto uploadVideoDto, String channelName) {
         validateUpload(uploadVideoDto);
 
-        UUID userId = parseUserId(uploadVideoDto.getUserId());
+        String userId = uploadVideoDto.getUserId();
         String objectKey = buildObjectKey(uploadVideoDto.getUserId(), uploadVideoDto.getOriginalFilename());
         LocalDateTime uploadedAt = LocalDateTime.now();
         String resolvedChannelName = resolveChannelName(channelName, uploadVideoDto.getUserId());
@@ -44,7 +44,7 @@ public class UploadService {
 
         try {
             VideoMetadata videoMetadata = VideoMetadata.builder()
-                    .id(UUID.randomUUID())
+                    .id(UUID.randomUUID().toString())
                     .userId(userId)
                     .title(uploadVideoDto.getTitle())
                     .description(uploadVideoDto.getDescription())
@@ -94,13 +94,9 @@ public class UploadService {
         if (uploadVideoDto.getTitle() == null) {
             throw new BadRequestException("Title is required");
         }
-    }
 
-    private UUID parseUserId(String userId) {
-        try {
-            return UUID.fromString(userId);
-        } catch (IllegalArgumentException exception) {
-            throw new BadRequestException("User id must be a valid UUID");
+        if (uploadVideoDto.getUserId().length() > 50) {
+            throw new BadRequestException("User id must not exceed 50 characters");
         }
     }
 

@@ -15,7 +15,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.Base64;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @Slf4j
@@ -39,13 +38,7 @@ public class VideoQueryService {
                 normalizedQuery,
                 pageSize);
 
-        List<VideoMetadata> videos = videoMetadataRepository.findPageByStatusAndCursor(
-                UPLOADED_STATUS,
-                normalizedQuery,
-                cursorPosition == null ? null : cursorPosition.getCreatedAt(),
-                cursorPosition == null ? null : cursorPosition.getId(),
-                PageRequest.of(0, pageSize + 1)
-        );
+        List<VideoMetadata> videos = fetchVideos(cursorPosition, normalizedQuery, pageSize);
 
         boolean hasMore = videos.size() > pageSize;
         List<VideoMetadata> currentPage = hasMore ? videos.subList(0, pageSize) : videos;
@@ -90,6 +83,44 @@ public class VideoQueryService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
+    private List<VideoMetadata> fetchVideos(CursorPosition cursorPosition, String normalizedQuery, int pageSize) {
+        PageRequest pageRequest = PageRequest.of(0, pageSize + 1);
+
+        // No search
+        if (normalizedQuery == null) {
+            if (cursorPosition == null) {
+                return videoMetadataRepository.findFirstPage(
+                        UPLOADED_STATUS,
+                        pageRequest
+                );
+            }
+
+            return videoMetadataRepository.findNextPage(
+                    UPLOADED_STATUS,
+                    cursorPosition.getCreatedAt(),
+                    cursorPosition.getId(),
+                    pageRequest
+            );
+        }
+
+        // With search
+        if (cursorPosition == null) {
+            return videoMetadataRepository.findFirstPageWithSearch(
+                    UPLOADED_STATUS,
+                    normalizedQuery,
+                    pageRequest
+            );
+        }
+
+        return videoMetadataRepository.findNextPageWithSearch(
+                UPLOADED_STATUS,
+                normalizedQuery,
+                cursorPosition.getCreatedAt(),
+                cursorPosition.getId(),
+                pageRequest
+        );
+    }
+
     private VideoResponseDto toVideoResponse(VideoMetadata metadata) {
         return VideoResponseDto.from(
                 metadata,
@@ -119,7 +150,7 @@ public class VideoQueryService {
 
             CursorPosition cursorPosition = new CursorPosition(
                     LocalDateTime.parse(parts[0]),
-                    UUID.fromString(parts[1])
+                    parts[1]
             );
             log.debug("Decoded cursor successfully: createdAt={}, id={}",
                     cursorPosition.getCreatedAt(),

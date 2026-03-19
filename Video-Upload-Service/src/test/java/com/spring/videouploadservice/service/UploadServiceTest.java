@@ -12,8 +12,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
-import java.util.UUID;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -62,12 +60,12 @@ class UploadServiceTest {
     }
 
     @Test
-    void uploadRejectsInvalidUserIdBeforeStorageWrite() {
-        UploadVideoDto uploadVideoDto = UploadVideoDto.of(videoFile(), "Demo", "Description", "user-1");
+    void uploadRejectsUserIdLongerThanColumnLimitBeforeStorageWrite() {
+        UploadVideoDto uploadVideoDto = UploadVideoDto.of(videoFile(), "Demo", "Description", "123456789012345678901234567890123456789012345678901");
 
         BadRequestException exception = assertThrows(BadRequestException.class, () -> uploadService.upload(uploadVideoDto, null));
 
-        assertEquals("User id must be a valid UUID", exception.getMessage());
+        assertEquals("User id must not exceed 50 characters", exception.getMessage());
         verify(storageService, never()).uploadVideo(any(), any(), any(Long.class), any());
         verify(videoMetadataRepository, never()).saveAndFlush(any(VideoMetadata.class));
     }
@@ -107,6 +105,6 @@ class UploadServiceTest {
     }
 
     private String validUserId() {
-        return UUID.fromString("11111111-1111-1111-1111-111111111111").toString();
+        return "user-1";
     }
 }

@@ -1,6 +1,6 @@
 CREATE TABLE videos (
-                        id UUID PRIMARY KEY,
-                        user_id UUID NOT NULL,
+                        id VARCHAR(50) PRIMARY KEY,
+                        user_id VARCHAR(50) NOT NULL,
 
                         title VARCHAR(255) NOT NULL,
                         description TEXT,

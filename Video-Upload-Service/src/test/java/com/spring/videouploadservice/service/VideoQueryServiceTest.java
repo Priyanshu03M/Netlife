@@ -13,7 +13,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -44,7 +43,7 @@ class VideoQueryServiceTest {
     void listVideosReturnsBusinessDtoFromDatabaseRecords() {
         VideoMetadata first = video("11111111-1111-1111-1111-111111111111", LocalDateTime.of(2026, 3, 20, 10, 0));
         VideoMetadata second = video("22222222-2222-2222-2222-222222222222", LocalDateTime.of(2026, 3, 20, 9, 0));
-        when(videoMetadataRepository.findPageByStatusAndCursor(anyString(), any(), any(), any(), any()))
+        when(videoMetadataRepository.findPageByStatusAndCursor(anyString(), any(), any(), any()))
                 .thenReturn(List.of(first, second));
         when(storageService.generatePresignedUrl("video-1")).thenReturn("https://cdn/video-1");
         when(storageService.generatePresignedUrl("thumb-1")).thenReturn("https://cdn/thumb-1");
@@ -83,7 +82,7 @@ class VideoQueryServiceTest {
                 video("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", LocalDateTime.of(2026, 3, 20, 9, 51)),
                 video("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", LocalDateTime.of(2026, 3, 20, 9, 50))
         );
-        when(videoMetadataRepository.findPageByStatusAndCursor(anyString(), any(), any(), any(), any()))
+        when(videoMetadataRepository.findPageByStatusAndCursor(anyString(), any(), any(), any()))
                 .thenReturn(records);
         when(storageService.generatePresignedUrl(any())).thenAnswer(invocation -> "https://cdn/" + invocation.getArgument(0));
 
@@ -91,7 +90,7 @@ class VideoQueryServiceTest {
 
         assertEquals(10, response.getItems().size());
         assertNotNull(response.getNextCursor());
-        verify(videoMetadataRepository).findPageByStatusAndCursor(anyString(), any(), any(), any(), any());
+        verify(videoMetadataRepository).findPageByStatusAndCursor(anyString(), any(), any(), any());
     }
 
     @Test
@@ -104,8 +103,8 @@ class VideoQueryServiceTest {
     private VideoMetadata video(String id, LocalDateTime createdAt) {
         String suffix = id.substring(0, 1);
         return VideoMetadata.builder()
-                .id(UUID.fromString(id))
-                .userId(UUID.fromString("12345678-1234-1234-1234-123456789012"))
+                .id(id)
+                .userId("user-1")
                 .title("Demo " + id)
                 .description("Description " + id)
                 .bucketUrl("videos")

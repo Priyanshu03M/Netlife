@@ -20,7 +20,7 @@ public class VideoResponseDto {
 
     public static VideoResponseDto from(VideoMetadata metadata, String videoUrl, String thumbnailUrl) {
         return VideoResponseDto.builder()
-                .id(metadata.getId().toString())
+                .id(metadata.getId())
                 .title(metadata.getTitle())
                 .description(metadata.getDescription())
                 .videoUrl(videoUrl)

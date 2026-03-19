@@ -10,7 +10,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @AllArgsConstructor
 @Builder
@@ -20,10 +19,10 @@ import java.util.UUID;
 @Table(name = "videos")
 public class VideoMetadata {
     @Id
-    private UUID id;
+    private String id;
 
     @Column(name = "user_id", nullable = false)
-    private UUID userId;
+    private String userId;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String title;
