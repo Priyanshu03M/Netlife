@@ -16,14 +16,18 @@ function Navbar({
         onClick={onHomeClick}
       >
         <span className="brand-mark" />
-        <span className="brand-text">Netlife</span>
+        <span className="brand-copy">
+          <span className="brand-text">Netlife</span>
+          <span className="brand-subtitle">Media dashboard</span>
+        </span>
       </button>
 
       <div className="search-wrap">
+        <span className="search-icon" aria-hidden="true">Search</span>
         <input
           type="search"
           className="search-input"
-          placeholder="Search"
+          placeholder="Search titles, descriptions, or channels"
           value={searchTerm}
           onChange={(event) => onSearchChange(event.target.value)}
           aria-label="Search videos"
@@ -36,7 +40,7 @@ function Navbar({
           className="upload-button"
           onClick={onUploadClick}
         >
-          Upload
+          Upload video
         </button>
         <div className="avatar-badge" aria-hidden="true">
           {avatarLabel}

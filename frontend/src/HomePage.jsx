@@ -130,9 +130,20 @@ function HomePage({ pathname, onNavigate, onLogout }) {
                 Back to home
               </button>
               <div className="watch-card">
-                <div className="watch-player-placeholder">
-                  Watch page placeholder
-                </div>
+                {selectedVideo?.videoUrl ? (
+                  <div className="watch-player-shell">
+                    <video
+                      className="watch-player"
+                      src={selectedVideo.videoUrl}
+                      controls
+                      preload="metadata"
+                    />
+                  </div>
+                ) : (
+                  <div className="watch-player-placeholder">
+                    Select a video from the feed to preview playback.
+                  </div>
+                )}
                 <h1 className="watch-title">
                   {selectedVideo?.title || 'Video details will appear here'}
                 </h1>
@@ -149,11 +160,18 @@ function HomePage({ pathname, onNavigate, onLogout }) {
           ) : (
             <>
               <header className="content-header">
-                <div>
+                <div className="content-heading">
+                  <span className="section-badge">Feed</span>
                   <h1 className="content-title">Recommended</h1>
                   <p className="content-subtitle">
-                    Browse the latest uploads from your Netlife feed.
+                    Browse the latest uploaded videos from your Netlife workspace.
                   </p>
+                </div>
+                <div className="content-summary">
+                  <div className="content-summary-value">{videos.length}</div>
+                  <div className="content-summary-label">
+                    {deferredSearchTerm ? 'results in this query' : 'videos loaded'}
+                  </div>
                 </div>
               </header>
 

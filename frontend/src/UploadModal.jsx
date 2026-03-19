@@ -118,14 +118,15 @@ function UploadModal({ isOpen, onClose, onUploadSuccess }) {
       >
         <div className="modal-header">
           <div>
-            <h2 id="upload-title" className="modal-title">Upload video</h2>
+            <span className="section-badge">Uploader</span>
+            <h2 id="upload-title" className="modal-title">Upload a new video</h2>
             <p className="modal-subtitle">
-              Add a file and send it to the Netlife upload API.
+              Add metadata, select a file, and send it to the Netlife upload API.
             </p>
           </div>
           <button
             type="button"
-            className="modal-close"
+            className="ghost-button"
             onClick={onClose}
             aria-label="Close upload dialog"
           >
@@ -198,13 +199,13 @@ function UploadModal({ isOpen, onClose, onUploadSuccess }) {
             ) : null}
           </div>
 
-          {error ? <p className="field-error">{error}</p> : null}
-          {successMessage ? <p className="server-message">{successMessage}</p> : null}
+          {error ? <p className="server-message server-message-error">{error}</p> : null}
+          {successMessage ? <p className="server-message server-message-success">{successMessage}</p> : null}
 
           <div className="modal-actions">
             <button
               type="button"
-              className="logout-button"
+              className="secondary-button"
               onClick={onClose}
               disabled={submitting}
             >

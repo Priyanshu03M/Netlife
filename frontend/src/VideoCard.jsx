@@ -24,6 +24,7 @@ function VideoCard({ video, viewLabel, timeAgoLabel, onOpen }) {
         onClick={onOpen}
       >
         <div className="video-thumb-wrap">
+          <span className="video-card-pill">Uploaded</span>
           {video.thumbnailUrl ? (
             <img
               className="video-thumb"
@@ -40,6 +41,9 @@ function VideoCard({ video, viewLabel, timeAgoLabel, onOpen }) {
         <div className="video-card-body">
           <h3 className="video-title">{video.title}</h3>
           <p className="video-channel">{video.channelName}</p>
+          {video.description ? (
+            <p className="video-description">{video.description}</p>
+          ) : null}
           <p className="video-meta">
             {viewLabel} - {timeAgoLabel}
           </p>

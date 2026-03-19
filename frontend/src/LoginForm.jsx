@@ -18,6 +18,7 @@ function LoginForm({ onLoginSuccess }) {
   const [errors, setErrors] = useState(initialErrors);
   const [submitting, setSubmitting] = useState(false);
   const [serverMessage, setServerMessage] = useState('');
+  const [serverTone, setServerTone] = useState('neutral');
 
   const validate = () => {
     const newErrors = { ...initialErrors };
@@ -50,6 +51,7 @@ function LoginForm({ onLoginSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setServerMessage('');
+    setServerTone('neutral');
 
     if (!validate()) {
       return;
@@ -78,11 +80,13 @@ function LoginForm({ onLoginSuccess }) {
       });
 
       setServerMessage('Login successful.');
+      setServerTone('success');
       if (typeof onLoginSuccess === 'function') {
         onLoginSuccess({ accessToken, refreshToken, userId: userId || id || '' });
       }
       setValues(initialValues);
     } catch (err) {
+      setServerTone('error');
       if (err instanceof ApiError) {
         setServerMessage(err.message || 'Login failed.');
       } else {
@@ -95,6 +99,10 @@ function LoginForm({ onLoginSuccess }) {
 
   return (
     <form className="form" onSubmit={handleSubmit} noValidate>
+      <div className="form-intro">
+        <h3 className="form-title">Account access</h3>
+        <p className="form-copy">Use your username and password to continue to the dashboard.</p>
+      </div>
       <div className="form-field">
         <label htmlFor="username" className="field-label">
           Username
@@ -107,6 +115,7 @@ function LoginForm({ onLoginSuccess }) {
           value={values.username}
           onChange={handleChange}
           autoComplete="username"
+          placeholder="Enter your username"
           disabled={submitting}
         />
         {errors.username && <p className="field-error">{errors.username}</p>}
@@ -124,6 +133,7 @@ function LoginForm({ onLoginSuccess }) {
           value={values.password}
           onChange={handleChange}
           autoComplete="current-password"
+          placeholder="Enter your password"
           disabled={submitting}
         />
         {errors.password && <p className="field-error">{errors.password}</p>}
@@ -138,7 +148,7 @@ function LoginForm({ onLoginSuccess }) {
       </button>
 
       {serverMessage && (
-        <p className="server-message">
+        <p className={`server-message server-message-${serverTone}`}>
           {serverMessage}
         </p>
       )}

@@ -20,6 +20,7 @@ function RegisterForm() {
   const [errors, setErrors] = useState(initialErrors);
   const [submitting, setSubmitting] = useState(false);
   const [serverMessage, setServerMessage] = useState('');
+  const [serverTone, setServerTone] = useState('neutral');
 
   const validate = () => {
     const newErrors = { ...initialErrors };
@@ -71,6 +72,7 @@ function RegisterForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setServerMessage('');
+    setServerTone('neutral');
 
     if (!validate()) {
       return;
@@ -107,12 +109,15 @@ function RegisterForm() {
       }
 
       if (!response.ok) {
+        setServerTone('error');
         setServerMessage(bodyText || 'Registration failed.');
       } else {
+        setServerTone('success');
         setServerMessage(bodyText || 'Registration successful.');
         setValues(initialValues);
       }
     } catch (err) {
+      setServerTone('error');
       setServerMessage('Unable to connect to server. Check backend.');
     } finally {
       setSubmitting(false);
@@ -121,6 +126,10 @@ function RegisterForm() {
 
   return (
     <form className="form" onSubmit={handleSubmit} noValidate>
+      <div className="form-intro">
+        <h3 className="form-title">Workspace setup</h3>
+        <p className="form-copy">Create a user, assign a role, and prepare the account for uploads.</p>
+      </div>
       <div className="form-field">
         <label htmlFor="username" className="field-label">
           Username
@@ -133,6 +142,7 @@ function RegisterForm() {
           value={values.username}
           onChange={handleChange}
           autoComplete="username"
+          placeholder="Choose a username"
           disabled={submitting}
         />
         {errors.username && <p className="field-error">{errors.username}</p>}
@@ -150,6 +160,7 @@ function RegisterForm() {
           value={values.email}
           onChange={handleChange}
           autoComplete="email"
+          placeholder="name@example.com"
           disabled={submitting}
         />
         {errors.email && <p className="field-error">{errors.email}</p>}
@@ -185,6 +196,7 @@ function RegisterForm() {
           value={values.password}
           onChange={handleChange}
           autoComplete="new-password"
+          placeholder="Create a secure password"
           disabled={submitting}
         />
         {errors.password && <p className="field-error">{errors.password}</p>}
@@ -199,7 +211,7 @@ function RegisterForm() {
       </button>
 
       {serverMessage && (
-        <p className="server-message">
+        <p className={`server-message server-message-${serverTone}`}>
           {serverMessage}
         </p>
       )}
@@ -208,4 +220,3 @@ function RegisterForm() {
 }
 
 export default RegisterForm;
-

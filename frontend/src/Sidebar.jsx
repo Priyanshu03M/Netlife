@@ -9,6 +9,7 @@ const navItems = [
 function Sidebar({ pathname, onNavigate }) {
   return (
     <aside className="sidebar">
+      <div className="sidebar-section-label">Browse</div>
       <nav className="sidebar-nav" aria-label="Main navigation">
         {navItems.map((item) => {
           const isActive = item.id === 'home'
@@ -22,7 +23,7 @@ function Sidebar({ pathname, onNavigate }) {
               className={`sidebar-link ${isActive ? 'sidebar-link-active' : ''}`}
               onClick={() => onNavigate(item.path)}
             >
-              {item.label}
+              <span className="sidebar-link-text">{item.label}</span>
             </button>
           );
         })}
