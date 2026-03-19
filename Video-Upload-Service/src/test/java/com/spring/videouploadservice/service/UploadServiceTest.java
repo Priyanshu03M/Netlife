@@ -3,16 +3,16 @@ package com.spring.videouploadservice.service;
 import com.spring.videouploadservice.dto.UploadResponseDto;
 import com.spring.videouploadservice.dto.UploadVideoDto;
 import com.spring.videouploadservice.entity.VideoMetadata;
+import com.spring.videouploadservice.exception.BadRequestException;
 import com.spring.videouploadservice.repository.VideoMetadataRepository;
-import io.minio.MinioClient;
-import io.minio.RemoveObjectArgs;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.util.ReflectionTestUtils;
+
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -20,13 +20,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class UploadServiceTest {
 
     @Mock
-    private MinioClient minioClient;
+    private StorageService storageService;
 
     @Mock
     private VideoMetadataRepository videoMetadataRepository;
@@ -35,61 +36,77 @@ class UploadServiceTest {
 
     @BeforeEach
     void setUp() {
-        uploadService = new UploadService(minioClient, videoMetadataRepository);
-        ReflectionTestUtils.setField(uploadService, "bucketName", "videos");
+        uploadService = new UploadService(storageService, videoMetadataRepository);
     }
 
     @Test
-    void uploadRejectsMissingUserIdBeforeStorageWrite() throws Exception {
+    void uploadRejectsMissingUserIdBeforeStorageWrite() {
         UploadVideoDto uploadVideoDto = UploadVideoDto.of(videoFile(), "Demo", "Description", "   ");
 
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> uploadService.upload(uploadVideoDto));
+        BadRequestException exception = assertThrows(BadRequestException.class, () -> uploadService.upload(uploadVideoDto, null));
 
-        assertEquals("User Id is required", exception.getMessage());
-        verify(minioClient, never()).putObject(any());
+        assertEquals("User id is required", exception.getMessage());
+        verify(storageService, never()).uploadVideo(any(), any(), any(Long.class), any());
         verify(videoMetadataRepository, never()).saveAndFlush(any(VideoMetadata.class));
     }
 
     @Test
-    void uploadRejectsMissingTitleBeforeStorageWrite() throws Exception {
-        UploadVideoDto uploadVideoDto = UploadVideoDto.of(videoFile(), "   ", "Description", "user-1");
+    void uploadRejectsMissingTitleBeforeStorageWrite() {
+        UploadVideoDto uploadVideoDto = UploadVideoDto.of(videoFile(), "   ", "Description", validUserId());
 
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> uploadService.upload(uploadVideoDto));
+        BadRequestException exception = assertThrows(BadRequestException.class, () -> uploadService.upload(uploadVideoDto, null));
 
         assertEquals("Title is required", exception.getMessage());
-        verify(minioClient, never()).putObject(any());
+        verify(storageService, never()).uploadVideo(any(), any(), any(Long.class), any());
+        verify(videoMetadataRepository, never()).saveAndFlush(any(VideoMetadata.class));
+    }
+
+    @Test
+    void uploadRejectsInvalidUserIdBeforeStorageWrite() {
+        UploadVideoDto uploadVideoDto = UploadVideoDto.of(videoFile(), "Demo", "Description", "user-1");
+
+        BadRequestException exception = assertThrows(BadRequestException.class, () -> uploadService.upload(uploadVideoDto, null));
+
+        assertEquals("User id must be a valid UUID", exception.getMessage());
+        verify(storageService, never()).uploadVideo(any(), any(), any(Long.class), any());
         verify(videoMetadataRepository, never()).saveAndFlush(any(VideoMetadata.class));
     }
 
     @Test
     void uploadRemovesObjectWhenMetadataPersistenceFails() throws Exception {
-        UploadVideoDto uploadVideoDto = UploadVideoDto.of(videoFile(), "Demo", "Description", "user-1");
-        when(minioClient.bucketExists(any())).thenReturn(true);
+        UploadVideoDto uploadVideoDto = UploadVideoDto.of(videoFile(), "Demo", "Description", validUserId());
+        when(storageService.getBucketName()).thenReturn("videos");
+        doNothing().when(storageService).uploadVideo(any(), any(), any(Long.class), any());
         when(videoMetadataRepository.saveAndFlush(any(VideoMetadata.class)))
                 .thenThrow(new IllegalStateException("db failure"));
 
-        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> uploadService.upload(uploadVideoDto));
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> uploadService.upload(uploadVideoDto, "Netlife"));
 
         assertEquals("db failure", exception.getMessage());
-        verify(minioClient).removeObject(any(RemoveObjectArgs.class));
+        verify(storageService).deleteObject(any());
     }
 
     @Test
     void uploadPersistsMetadataAndBuildsResponse() throws Exception {
-        UploadVideoDto uploadVideoDto = UploadVideoDto.of(videoFile(), "Demo", "Description", "user-1");
-        when(minioClient.bucketExists(any())).thenReturn(true);
+        UploadVideoDto uploadVideoDto = UploadVideoDto.of(videoFile(), "Demo", "Description", validUserId());
+        when(storageService.getBucketName()).thenReturn("videos");
+        doNothing().when(storageService).uploadVideo(any(), any(), any(Long.class), any());
 
-        UploadResponseDto response = uploadService.upload(uploadVideoDto);
+        UploadResponseDto response = uploadService.upload(uploadVideoDto, "Netlife");
 
         assertEquals("UPLOADED", response.getStatus());
         assertEquals("videos", response.getBucket());
         assertEquals("Demo", response.getTitle());
-        assertEquals("user-1", response.getUserId());
+        assertEquals(validUserId(), response.getUserId());
         assertNotNull(response.getObjectKey());
         verify(videoMetadataRepository).saveAndFlush(any(VideoMetadata.class));
     }
 
     private MockMultipartFile videoFile() {
         return new MockMultipartFile("file", "demo.mp4", "video/mp4", new byte[]{1, 2, 3});
+    }
+
+    private String validUserId() {
+        return UUID.fromString("11111111-1111-1111-1111-111111111111").toString();
     }
 }

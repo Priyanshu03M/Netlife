@@ -6,23 +6,26 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @AllArgsConstructor
 @Builder
 @Entity
+@Getter
 @NoArgsConstructor
 @Table(name = "videos")
 public class VideoMetadata {
     @Id
-    private String id;
+    private UUID id;
 
     @Column(name = "user_id", nullable = false)
-    private String userId;
+    private UUID userId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String title;
 
     @Column(columnDefinition = "TEXT")
@@ -33,6 +36,15 @@ public class VideoMetadata {
 
     @Column(name = "object_key", nullable = false)
     private String objectKey;
+
+    @Column(name = "thumbnail_object_key")
+    private String thumbnailObjectKey;
+
+    @Column(name = "channel_name", nullable = false, columnDefinition = "VARCHAR(255)")
+    private String channelName;
+
+    @Column(nullable = false)
+    private Long views;
 
     private Long size;
     private Integer duration;

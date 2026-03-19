@@ -1,173 +1,121 @@
 package com.spring.videouploadservice.service;
 
-import com.spring.videouploadservice.dto.VideoPageResponseDto;
-import com.spring.videouploadservice.dto.VideoSummaryDto;
 import com.spring.videouploadservice.dto.UploadResponseDto;
 import com.spring.videouploadservice.dto.UploadVideoDto;
 import com.spring.videouploadservice.entity.VideoMetadata;
+import com.spring.videouploadservice.exception.BadRequestException;
+import com.spring.videouploadservice.exception.StorageException;
 import com.spring.videouploadservice.repository.VideoMetadataRepository;
-import io.minio.BucketExistsArgs;
-import io.minio.GetPresignedObjectUrlArgs;
-import io.minio.ListObjectsArgs;
-import io.minio.MakeBucketArgs;
-import io.minio.MinioClient;
-import io.minio.PutObjectArgs;
-import io.minio.RemoveObjectArgs;
-import io.minio.Result;
-import io.minio.errors.*;
-import io.minio.http.Method;
-import io.minio.messages.Item;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class UploadService {
-    private static final int VIDEO_PAGE_SIZE = 10;
-    private final MinioClient minioClient;
+    private static final String UPLOADED_STATUS = "UPLOADED";
+
+    private final StorageService storageService;
     private final VideoMetadataRepository videoMetadataRepository;
 
-    @Value("${minio.bucket}")
-    private String bucketName;
-
-    public VideoPageResponseDto listVideos(String cursor) throws Exception {
-        ensureBucketExists(bucketName);
-
-        List<VideoSummaryDto> videos = new ArrayList<>();
-        String normalizedCursor = normalizeCursor(cursor);
-
-        ListObjectsArgs.Builder listArgsBuilder = ListObjectsArgs.builder()
-                .bucket(bucketName)
-                .recursive(true)
-                .maxKeys(VIDEO_PAGE_SIZE + 1);
-
-        if (normalizedCursor != null) {
-            listArgsBuilder.startAfter(normalizedCursor);
-        }
-
-        Iterable<Result<Item>> results = minioClient.listObjects(listArgsBuilder.build());
-
-        boolean hasMore = false;
-        for (Result<Item> result : results) {
-            Item item = result.get();
-            if (item.isDir()) {
-                continue;
-            }
-
-            if (videos.size() == VIDEO_PAGE_SIZE) {
-                hasMore = true;
-                break;
-            }
-
-            videos.add(VideoSummaryDto.builder()
-                    .bucket(bucketName)
-                    .objectKey(item.objectName())
-                    .size(item.size())
-                    .lastModified(item.lastModified().toOffsetDateTime())
-                    .url(buildObjectUrl(item.objectName()))
-                    .build());
-        }
-
-        String nextCursor = hasMore ? videos.get(videos.size() - 1).getObjectKey() : null;
-
-        return VideoPageResponseDto.builder()
-                .videos(videos)
-                .nextCursor(nextCursor)
-                .limit(VIDEO_PAGE_SIZE)
-                .hasMore(hasMore)
-                .build();
-    }
-
-    public UploadResponseDto upload(UploadVideoDto uploadVideoDto) throws Exception {
+    public UploadResponseDto upload(UploadVideoDto uploadVideoDto, String channelName) {
         validateUpload(uploadVideoDto);
 
+        UUID userId = parseUserId(uploadVideoDto.getUserId());
         String objectKey = buildObjectKey(uploadVideoDto.getUserId(), uploadVideoDto.getOriginalFilename());
         LocalDateTime uploadedAt = LocalDateTime.now();
+        String resolvedChannelName = resolveChannelName(channelName, uploadVideoDto.getUserId());
+
+        log.debug("Preparing upload: userId={}, objectKey={}, contentType={}, size={}, channelName='{}'",
+                userId,
+                objectKey,
+                uploadVideoDto.getContentType(),
+                uploadVideoDto.getSize(),
+                resolvedChannelName);
 
         uploadToStorage(uploadVideoDto, objectKey);
 
         try {
             VideoMetadata videoMetadata = VideoMetadata.builder()
-                    .id(UUID.randomUUID().toString())
-                    .userId(uploadVideoDto.getUserId())
+                    .id(UUID.randomUUID())
+                    .userId(userId)
                     .title(uploadVideoDto.getTitle())
                     .description(uploadVideoDto.getDescription())
-                    .bucketUrl(bucketName)
+                    .bucketUrl(storageService.getBucketName())
                     .objectKey(objectKey)
+                    .thumbnailObjectKey(null)
+                    .channelName(resolvedChannelName)
+                    .views(0L)
                     .duration(null)
                     .size(uploadVideoDto.getSize())
                     .format(uploadVideoDto.getContentType())
-                    .status("UPLOADED")
+                    .status(UPLOADED_STATUS)
                     .createdAt(uploadedAt)
                     .build();
 
             videoMetadataRepository.saveAndFlush(videoMetadata);
+            log.info("Video metadata persisted: videoId={}, objectKey={}, userId={}",
+                    videoMetadata.getId(),
+                    videoMetadata.getObjectKey(),
+                    videoMetadata.getUserId());
         } catch (RuntimeException e) {
-            cleanupUploadedObject(objectKey);
+            log.warn("Metadata persistence failed. Rolling back storage object: objectKey={}", objectKey, e);
+            storageService.deleteObject(objectKey);
             throw e;
         }
 
-        return UploadResponseDto.from(bucketName, objectKey, uploadVideoDto, "UPLOADED", uploadedAt);
+        return UploadResponseDto.from(storageService.getBucketName(), objectKey, uploadVideoDto, UPLOADED_STATUS, uploadedAt);
     }
 
     private void validateUpload(UploadVideoDto uploadVideoDto) {
         if (uploadVideoDto == null) {
-            throw new IllegalArgumentException("Upload request is required");
+            throw new BadRequestException("Upload request is required");
         }
 
-        if(!uploadVideoDto.hasFile()) {
-            throw new IllegalArgumentException("Upload File is Empty");
+        if (!uploadVideoDto.hasFile()) {
+            throw new BadRequestException("Upload file is empty");
         }
 
-        if(!uploadVideoDto.isVideoFile()) {
-            throw new IllegalArgumentException("Upload File Type Not Supported");
+        if (!uploadVideoDto.isVideoFile()) {
+            throw new BadRequestException("Upload file type not supported");
         }
 
         if (uploadVideoDto.getUserId() == null) {
-            throw new IllegalArgumentException("User Id is required");
+            throw new BadRequestException("User id is required");
         }
 
         if (uploadVideoDto.getTitle() == null) {
-            throw new IllegalArgumentException("Title is required");
+            throw new BadRequestException("Title is required");
         }
     }
 
-    private void uploadToStorage(UploadVideoDto uploadVideoDto, String objectKey) throws Exception {
+    private UUID parseUserId(String userId) {
         try {
-            ensureBucketExists(bucketName);
-            minioClient.putObject(
-                PutObjectArgs.builder()
-                    .bucket(bucketName)
-                    .object(objectKey)
-                    .stream(uploadVideoDto.getFile().getInputStream(), uploadVideoDto.getSize(), -1)
-                    .contentType(uploadVideoDto.getContentType())
-                    .build()
-            );
-        } catch (MinioException e) {
-            throw new MinioException(e.getMessage());
+            return UUID.fromString(userId);
+        } catch (IllegalArgumentException exception) {
+            throw new BadRequestException("User id must be a valid UUID");
         }
     }
 
-    private void ensureBucketExists(String bucketName) throws Exception {
-        boolean exists = minioClient.bucketExists(
-                BucketExistsArgs.builder()
-                        .bucket(bucketName)
-                        .build()
-        );
-
-        if(!exists) {
-            minioClient.makeBucket(
-                    MakeBucketArgs.builder()
-                            .bucket(bucketName)
-                            .build()
+    private void uploadToStorage(UploadVideoDto uploadVideoDto, String objectKey) {
+        try (InputStream inputStream = uploadVideoDto.getFile().getInputStream()) {
+            log.debug("Uploading video to storage: objectKey={}", objectKey);
+            storageService.uploadVideo(
+                    objectKey,
+                    inputStream,
+                    uploadVideoDto.getSize(),
+                    uploadVideoDto.getContentType()
             );
+            log.info("Video uploaded to storage: objectKey={}", objectKey);
+        } catch (IOException exception) {
+            throw new StorageException("Failed to read upload file", exception);
         }
     }
 
@@ -175,40 +123,14 @@ public class UploadService {
         String safeUserID = (userId == null || userId.isBlank()) ? "anonymous" : userId.trim();
         String safeName = (originalFilename == null || originalFilename.isBlank())
                 ? "upload.bin"
-                : originalFilename.replaceAll("[^a-zA-Z0-9._-]", "_");
+                : originalFilename.replaceAll("[^a-zA-Z0-9._-]", "_").toLowerCase(Locale.ROOT);
         return safeUserID + "/" + UUID.randomUUID() + "/" + safeName;
     }
 
-    private void cleanupUploadedObject(String objectKey) {
-        try {
-            minioClient.removeObject(
-                    RemoveObjectArgs.builder()
-                            .bucket(bucketName)
-                            .object(objectKey)
-                            .build()
-            );
-        } catch (Exception cleanupException) {
-            throw new IllegalStateException("Video uploaded but cleanup failed after metadata persistence error", cleanupException);
+    private String resolveChannelName(String channelName, String userId) {
+        if (channelName == null || channelName.isBlank()) {
+            return userId;
         }
-    }
-
-    private String buildObjectUrl(String objectKey) throws Exception {
-        return minioClient.getPresignedObjectUrl(
-                GetPresignedObjectUrlArgs.builder()
-                        .method(Method.GET)
-                        .bucket(bucketName)
-                        .object(objectKey)
-                        .expiry(1, TimeUnit.DAYS)
-                        .build()
-        );
-    }
-
-    private String normalizeCursor(String cursor) {
-        if (cursor == null) {
-            return null;
-        }
-
-        String trimmed = cursor.trim();
-        return trimmed.isEmpty() ? null : trimmed;
+        return channelName.trim();
     }
 }

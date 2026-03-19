@@ -7,8 +7,8 @@ import java.util.List;
 
 @Getter
 @Builder
-public class VideoPageResponseDto {
-    private final List<VideoSummaryDto> videos;
+public class CursorPageResponse<T> {
+    private final List<T> items;
     private final String nextCursor;
     private final int limit;
     private final boolean hasMore;
