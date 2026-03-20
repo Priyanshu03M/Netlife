@@ -1,5 +1,6 @@
 package com.spring.authservice.service;
 
+import com.spring.authservice.config.Constant;
 import com.spring.authservice.config.JwtUtil;
 import com.spring.authservice.dto.*;
 import com.spring.authservice.entity.Person;
@@ -9,6 +10,7 @@ import com.spring.authservice.repository.PersonRepository;
 import com.spring.authservice.repository.RefreshTokenRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -37,33 +39,27 @@ public class AuthService {
     @Value("${refresh-token-expiration}")
     private long EXPIRATION;
 
+    @Transactional
     public String registerUser(UserRegisterRequest userRegisterRequest) {
-        String username = userRegisterRequest.getUsername().trim();
+        String username = userRegisterRequest.getUsername().trim().toLowerCase(Locale.ROOT);
         String email = userRegisterRequest.getEmail().trim().toLowerCase(Locale.ROOT);
 
-        if (personRepository.existsByUsername(username)) {
-            throw new IllegalStateException("Username already exists, Try another");
-        }
-
-        if (personRepository.existsByEmail(email)) {
-            throw new IllegalStateException("Email already exists. Try login");
-        }
-
         String encodedPassword = passwordEncoder.encode(userRegisterRequest.getPassword());
-        String role = userRegisterRequest.getRole();
-        if(!role.startsWith("ROLE_")) {
-            role = "ROLE_" + role;
-        }
         Person person = Person.builder()
                 .id(UUID.randomUUID().toString())
                 .username(username)
                 .email(email)
                 .password(encodedPassword)
-                .role(role)
+                .role(Constant.ADMINROLE)
                 .createdAt(LocalDateTime.now())
                 .build();
-        personRepository.save(person);
-        return "Person Saved";
+
+        try {
+            personRepository.save(person);
+        } catch (DataIntegrityViolationException e) {
+            throw new IllegalStateException("Username or email already exists");
+        }
+        return Constant.SUCCESS;
     }
 
     public JwtResponse login(UserLoginRequest request) {

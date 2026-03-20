@@ -21,16 +21,6 @@ public class AuthController {
         return authService.registerUser(userRegisterRequest);
     }
 
-    @GetMapping("/pages")
-    public String getPages() {
-        return "Here are the pages";
-    }
-
-    @GetMapping("/pages1")
-    public String getPages1() {
-        return "Here are the confidential pages of the ";
-    }
-
     @PostMapping("/login")
     public ResponseEntity<JwtResponse> login(@Valid @RequestBody UserLoginRequest request) {
         JwtResponse response = authService.login(request);
