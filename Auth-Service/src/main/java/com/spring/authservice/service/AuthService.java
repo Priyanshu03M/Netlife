@@ -51,7 +51,7 @@ public class AuthService {
                 .username(username)
                 .email(email)
                 .password(encodedPassword)
-                .role(Constant.ADMINROLE)
+                .role(Constant.ROLE_USER)
                 .createdAt(LocalDateTime.now())
                 .build();
 
