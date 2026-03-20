@@ -1,6 +1,7 @@
 package com.spring.authservice.service;
 
 import com.spring.authservice.config.Constant;
+import com.spring.authservice.config.CustomUserDetails;
 import com.spring.authservice.config.JwtUtil;
 import com.spring.authservice.dto.*;
 import com.spring.authservice.entity.Person;
@@ -66,28 +67,24 @@ public class AuthService {
 
         UsernamePasswordAuthenticationToken authToken =
                 new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
+                        request.getUsernameOrEmail().trim().toLowerCase(),
                         request.getPassword()
                 );
 
         Authentication authentication = authenticationManager.authenticate(authToken);
 
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
         JwtUser user = new JwtUser(userDetails.getUsername(), userDetails.getAuthorities());
 
-        String refreshToken = generateRefreshToken(request.getUsername());
+        String refreshToken = generateRefreshToken(userDetails.getPerson());
         String accessToken = jwtUtil.generateAccessToken(user);
         return JwtResponse.builder().accessToken(accessToken).refreshToken(refreshToken).build();
     }
 
-    private String generateRefreshToken(String username) {
+    private String generateRefreshToken(Person person) {
         String token = UUID.randomUUID().toString();
-        Person person = personRepository.findByUsername(username);
-        if (person == null) {
-            throw new IllegalStateException("User not found while creating refresh token");
-        }
-        RefreshToken refreshToken = RefreshToken.builder().token(token).person(person).expiryDate(LocalDateTime.now().plusHours(1)).build();
+        RefreshToken refreshToken = RefreshToken.builder().token(token).person(person).expiryDate(LocalDateTime.now().plusDays(EXPIRATION)).build();
         refreshTokenRepository.save(refreshToken);
         return token;
     }

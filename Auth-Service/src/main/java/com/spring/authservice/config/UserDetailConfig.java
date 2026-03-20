@@ -23,21 +23,15 @@ public class UserDetailConfig implements UserDetailsService {
     private final PersonRepository personRepository;
 
     @Override
-    public UserDetails loadUserByUsername(@NonNull String username) throws UsernameNotFoundException {
-        Person person = personRepository.findByUsername(username);
-
-        if (person == null) {
-            throw new UsernameNotFoundException("User not found");
-        }
+    public UserDetails loadUserByUsername(@NonNull String usernameOrEmail) throws UsernameNotFoundException {
+        Person person = personRepository
+                .findByUsernameOrEmail(usernameOrEmail,  usernameOrEmail)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
         List<GrantedAuthority> grantedAuthorities =
                 List.of(new SimpleGrantedAuthority(person.getRole()));
 
-        return new User(
-                person.getUsername(),
-                person.getPassword(),
-                grantedAuthorities
-        );
+        return new CustomUserDetails(person);
     }
 }
 
