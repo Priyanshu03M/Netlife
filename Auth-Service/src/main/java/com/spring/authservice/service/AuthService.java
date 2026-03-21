@@ -63,6 +63,7 @@ public class AuthService {
         return Constant.SUCCESS;
     }
 
+    @Transactional
     public JwtResponse login(UserLoginRequest request) {
 
         UsernamePasswordAuthenticationToken authToken =
