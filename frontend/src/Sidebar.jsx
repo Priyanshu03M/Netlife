@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 
 const navItems = [
   { id: 'home', label: 'Home', path: '/' },
@@ -32,4 +32,4 @@ function Sidebar({ pathname, onNavigate }) {
   );
 }
 
-export default Sidebar;
+export default memo(Sidebar);

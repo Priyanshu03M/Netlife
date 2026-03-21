@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 
 function Navbar({
   isLoggedIn,
@@ -89,4 +89,4 @@ function Navbar({
   );
 }
 
-export default Navbar;
+export default memo(Navbar);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchVideos } from '../api/videos';
 
 export function useVideos({ query = '', limit = 10 } = {}) {
@@ -9,8 +9,12 @@ export function useVideos({ query = '', limit = 10 } = {}) {
   const [nextCursor, setNextCursor] = useState(null);
   const [hasMore, setHasMore] = useState(false);
   const [pageLimit, setPageLimit] = useState(limit);
+  const activeRequestRef = useRef(0);
 
-  const load = useCallback(async ({ cursor = '', append = false } = {}) => {
+  const load = useCallback(async ({ cursor = '', append = false, signal } = {}) => {
+    const requestId = activeRequestRef.current + 1;
+    activeRequestRef.current = requestId;
+
     if (append) {
       setLoadingMore(true);
     } else {
@@ -22,13 +26,23 @@ export function useVideos({ query = '', limit = 10 } = {}) {
       const result = await fetchVideos(undefined, {
         cursor,
         query,
-        limit
+        limit,
+        signal
       });
+
+      if (signal?.aborted || requestId !== activeRequestRef.current) {
+        return;
+      }
+
       setVideos((current) => (append ? [...current, ...result.items] : result.items));
       setNextCursor(result.nextCursor);
       setHasMore(result.hasMore);
       setPageLimit(typeof result.limit === 'number' ? result.limit : limit);
     } catch (err) {
+      if (signal?.aborted || err?.name === 'AbortError' || requestId !== activeRequestRef.current) {
+        return;
+      }
+
       if (!append) {
         setVideos([]);
         setNextCursor(null);
@@ -36,6 +50,10 @@ export function useVideos({ query = '', limit = 10 } = {}) {
       }
       setError(err);
     } finally {
+      if (signal?.aborted || requestId !== activeRequestRef.current) {
+        return;
+      }
+
       if (append) {
         setLoadingMore(false);
       } else {
@@ -45,50 +63,17 @@ export function useVideos({ query = '', limit = 10 } = {}) {
   }, [limit, query]);
 
   useEffect(() => {
-    let active = true;
-
-    const run = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const result = await fetchVideos(undefined, {
-          query,
-          limit
-        });
-        if (!active) {
-          return;
-        }
-
-        setVideos(result.items);
-        setNextCursor(result.nextCursor);
-        setHasMore(result.hasMore);
-        setPageLimit(typeof result.limit === 'number' ? result.limit : limit);
-      } catch (err) {
-        if (!active) {
-          return;
-        }
-
-        setVideos([]);
-        setNextCursor(null);
-        setHasMore(false);
-        setError(err);
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    };
-
-    run();
+    const controller = new AbortController();
+    load({ signal: controller.signal });
 
     return () => {
-      active = false;
+      controller.abort();
     };
-  }, [limit, query]);
+  }, [load]);
 
   const reload = useCallback(async () => {
-    await load();
+    const controller = new AbortController();
+    await load({ signal: controller.signal });
   }, [load]);
 
   const loadMore = useCallback(async () => {

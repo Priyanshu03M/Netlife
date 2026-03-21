@@ -1,4 +1,4 @@
-import React, { useDeferredValue, useState } from 'react';
+import React, { useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { getAvatarLabel, getSession } from './auth/session';
 import { useVideos } from './hooks/useVideos';
 import Navbar from './Navbar.jsx';
@@ -6,16 +6,20 @@ import Sidebar from './Sidebar.jsx';
 import VideoCard from './VideoCard.jsx';
 import UploadModal from './UploadModal.jsx';
 
+const viewsFormatter = new Intl.NumberFormat('en-US', {
+  notation: 'compact',
+  maximumFractionDigits: 1
+});
+
 function formatViews(value) {
   if (typeof value !== 'number' || Number.isNaN(value)) {
     return '0 views';
   }
 
-  return `${new Intl.NumberFormat('en-US', {
-    notation: 'compact',
-    maximumFractionDigits: 1
-  }).format(value)} views`;
+  return `${viewsFormatter.format(value)} views`;
 }
+
+const skeletonItems = Array.from({ length: 6 }, (_, index) => index);
 
 function formatTimeAgo(dateString) {
   if (!dateString) {
@@ -107,19 +111,42 @@ function HomePage({
   });
   const session = getSession();
   const videoErrorContent = getVideoErrorContent(error);
+  const handleHomeClick = useCallback(() => {
+    onNavigate('/');
+  }, [onNavigate]);
+  const handleUploadClick = useCallback(() => {
+    setIsUploadOpen(true);
+  }, []);
+  const handleCloseUpload = useCallback(() => {
+    setIsUploadOpen(false);
+  }, []);
+  const handleOpenVideo = useCallback((videoId) => {
+    onNavigate(`/watch/${videoId}`);
+  }, [onNavigate]);
 
-  const selectedVideoId = pathname.startsWith('/watch/')
-    ? pathname.replace('/watch/', '')
-    : '';
-  const selectedVideo = selectedVideoId
-    ? videos.find((video) => video.id === selectedVideoId)
-    : null;
+  const selectedVideoId = useMemo(() => (
+    pathname.startsWith('/watch/') ? pathname.replace('/watch/', '') : ''
+  ), [pathname]);
+  const selectedVideo = useMemo(() => (
+    selectedVideoId ? videos.find((video) => video.id === selectedVideoId) : null
+  ), [selectedVideoId, videos]);
   const isAuthRoute = pathname === '/login' || pathname === '/register';
   const authTitle = pathname === '/register' ? 'Create your workspace access' : 'Welcome back';
   const authSubtitle = pathname === '/register'
     ? 'Set up a new Netlife account with the correct role and credentials.'
     : 'Enter your credentials to access the dashboard and manage videos.';
   const profileName = session.username || 'Guest';
+  const videoCards = useMemo(() => (
+    videos.map((video) => (
+      <VideoCard
+        key={video.id}
+        video={video}
+        viewLabel={formatViews(video.views)}
+        timeAgoLabel={formatTimeAgo(video.createdAt)}
+        onOpen={handleOpenVideo}
+      />
+    ))
+  ), [handleOpenVideo, videos]);
 
   return (
     <div className="shell">
@@ -127,10 +154,10 @@ function HomePage({
         isLoggedIn={isLoggedIn}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
-        onHomeClick={() => onNavigate('/')}
+        onHomeClick={handleHomeClick}
         onLoginClick={onLoginClick}
         onRegisterClick={onRegisterClick}
-        onUploadClick={() => setIsUploadOpen(true)}
+        onUploadClick={handleUploadClick}
         onLogout={onLogout}
         avatarLabel={getAvatarLabel(profileName === 'Guest' ? 'guest' : session.username)}
         profileName={profileName}
@@ -143,7 +170,7 @@ function HomePage({
               <button
                 type="button"
                 className="back-button"
-                onClick={() => onNavigate('/')}
+                onClick={handleHomeClick}
               >
                 Back to home
               </button>
@@ -250,7 +277,7 @@ function HomePage({
 
               {loading ? (
                 <section className="video-grid" aria-label="Loading videos">
-                  {Array.from({ length: 8 }).map((_, index) => (
+                  {skeletonItems.map((index) => (
                     <div className="video-card skeleton-card" key={index}>
                       <div className="skeleton skeleton-thumb" />
                       <div className="video-card-body">
@@ -288,17 +315,7 @@ function HomePage({
                 </section>
               ) : (
                 <>
-                  <section className="video-grid">
-                    {videos.map((video) => (
-                      <VideoCard
-                        key={video.id}
-                        video={video}
-                        viewLabel={formatViews(video.views)}
-                        timeAgoLabel={formatTimeAgo(video.createdAt)}
-                        onOpen={() => onNavigate(`/watch/${video.id}`)}
-                      />
-                    ))}
-                  </section>
+                  <section className="video-grid">{videoCards}</section>
                   {hasMore ? (
                     <div className="feed-actions">
                       <button
@@ -321,7 +338,7 @@ function HomePage({
       </div>
       <UploadModal
         isOpen={isLoggedIn && isUploadOpen}
-        onClose={() => setIsUploadOpen(false)}
+        onClose={handleCloseUpload}
         onUploadSuccess={async () => {
           setIsUploadOpen(false);
           await reload();

@@ -85,6 +85,7 @@ export async function apiRequest(url, options = {}) {
   const {
     token,
     headers = {},
+    signal,
     ...fetchOptions
   } = options;
   const accessToken = token ?? getSession().accessToken;
@@ -103,9 +104,14 @@ export async function apiRequest(url, options = {}) {
   try {
     response = await fetch(url, {
       ...fetchOptions,
-      headers: requestHeaders
+      headers: requestHeaders,
+      signal
     });
   } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw error;
+    }
+
     console.error('[apiRequest] Network failure', {
       url,
       method: fetchOptions.method || 'GET',

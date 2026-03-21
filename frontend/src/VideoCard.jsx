@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 
 /**
  * @param {{
@@ -12,7 +12,7 @@ import React from 'react';
  *   },
  *   viewLabel: string,
  *   timeAgoLabel: string,
- *   onOpen: () => void
+ *   onOpen: (videoId: string) => void
  * }} props
  */
 function VideoCard({ video, viewLabel, timeAgoLabel, onOpen }) {
@@ -21,7 +21,7 @@ function VideoCard({ video, viewLabel, timeAgoLabel, onOpen }) {
       <button
         type="button"
         className="video-card-button"
-        onClick={onOpen}
+        onClick={() => onOpen(video.id)}
       >
         <div className="video-thumb-wrap">
           <span className="video-card-pill">Uploaded</span>
@@ -53,4 +53,4 @@ function VideoCard({ video, viewLabel, timeAgoLabel, onOpen }) {
   );
 }
 
-export default VideoCard;
+export default memo(VideoCard);

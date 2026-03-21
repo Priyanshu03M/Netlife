@@ -96,7 +96,7 @@ function extractCollection(payload) {
   });
 }
 
-export async function fetchVideos(token, { cursor = '', query = '', limit } = {}) {
+export async function fetchVideos(token, { cursor = '', query = '', limit, signal } = {}) {
   const url = new URL(API_ROUTES.videos);
   if (cursor) {
     url.searchParams.set('cursor', cursor);
@@ -118,7 +118,8 @@ export async function fetchVideos(token, { cursor = '', query = '', limit } = {}
 
   const payload = await apiRequest(url.toString(), {
     method: 'GET',
-    token
+    token,
+    signal
   });
 
   console.debug('[videos] Raw videos payload received', {
