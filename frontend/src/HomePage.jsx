@@ -81,7 +81,15 @@ function getVideoErrorContent(error) {
   };
 }
 
-function HomePage({ pathname, onNavigate, onLogout }) {
+function HomePage({
+  pathname,
+  isLoggedIn,
+  onNavigate,
+  onLogout,
+  onLoginClick,
+  onRegisterClick,
+  authPanel
+}) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const deferredSearchTerm = useDeferredValue(searchTerm.trim());
@@ -106,16 +114,26 @@ function HomePage({ pathname, onNavigate, onLogout }) {
   const selectedVideo = selectedVideoId
     ? videos.find((video) => video.id === selectedVideoId)
     : null;
+  const isAuthRoute = pathname === '/login' || pathname === '/register';
+  const authTitle = pathname === '/register' ? 'Create your workspace access' : 'Welcome back';
+  const authSubtitle = pathname === '/register'
+    ? 'Set up a new Netlife account with the correct role and credentials.'
+    : 'Enter your credentials to access the dashboard and manage videos.';
+  const profileName = session.username || 'Guest';
 
   return (
     <div className="shell">
       <Navbar
+        isLoggedIn={isLoggedIn}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         onHomeClick={() => onNavigate('/')}
+        onLoginClick={onLoginClick}
+        onRegisterClick={onRegisterClick}
         onUploadClick={() => setIsUploadOpen(true)}
         onLogout={onLogout}
-        avatarLabel={getAvatarLabel(session.username)}
+        avatarLabel={getAvatarLabel(profileName === 'Guest' ? 'guest' : session.username)}
+        profileName={profileName}
       />
       <div className="shell-body">
         <Sidebar pathname={pathname} onNavigate={onNavigate} />
@@ -156,6 +174,61 @@ function HomePage({ pathname, onNavigate, onLogout }) {
                   <p className="watch-description">{selectedVideo.description}</p>
                 ) : null}
               </div>
+            </section>
+          ) : isAuthRoute && !isLoggedIn ? (
+            <section className="auth-inline-layout">
+              <aside className="auth-hero">
+                <span className="section-badge">Video platform</span>
+                <h1 className="auth-hero-title">
+                  Publish, manage, and explore your Netlife content in one place.
+                </h1>
+                <p className="auth-hero-text">
+                  A lightweight creator surface with clean uploads, searchable feeds, and a focused
+                  playback workflow.
+                </p>
+                <div className="auth-feature-list">
+                  <div className="auth-feature-item">
+                    <strong>Guest browsing</strong>
+                    <span>Open the homepage first and explore videos before logging in.</span>
+                  </div>
+                  <div className="auth-feature-item">
+                    <strong>Fast auth flow</strong>
+                    <span>Use the navbar to switch between registration and login instantly.</span>
+                  </div>
+                  <div className="auth-feature-item">
+                    <strong>Upload ready</strong>
+                    <span>Upload actions appear as soon as a valid user session is available.</span>
+                  </div>
+                </div>
+              </aside>
+
+              <section className="card auth-panel">
+                <header className="card-header">
+                  <span className="section-badge">
+                    {pathname === '/register' ? 'Register' : 'Sign in'}
+                  </span>
+                  <h2 className="card-title">{authTitle}</h2>
+                  <p className="card-subtitle">{authSubtitle}</p>
+                  <div className="auth-toggle">
+                    <button
+                      type="button"
+                      className={`auth-toggle-button ${pathname === '/register' ? 'auth-toggle-button-active' : ''}`}
+                      onClick={onRegisterClick}
+                    >
+                      Register
+                    </button>
+                    <button
+                      type="button"
+                      className={`auth-toggle-button ${pathname === '/login' ? 'auth-toggle-button-active' : ''}`}
+                      onClick={onLoginClick}
+                    >
+                      Login
+                    </button>
+                  </div>
+                </header>
+
+                {authPanel}
+              </section>
             </section>
           ) : (
             <>
@@ -247,7 +320,7 @@ function HomePage({ pathname, onNavigate, onLogout }) {
         </main>
       </div>
       <UploadModal
-        isOpen={isUploadOpen}
+        isOpen={isLoggedIn && isUploadOpen}
         onClose={() => setIsUploadOpen(false)}
         onUploadSuccess={async () => {
           setIsUploadOpen(false);

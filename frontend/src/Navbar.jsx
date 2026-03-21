@@ -1,12 +1,16 @@
 import React from 'react';
 
 function Navbar({
+  isLoggedIn,
   searchTerm,
   onSearchChange,
   onHomeClick,
+  onLoginClick,
+  onRegisterClick,
   onUploadClick,
   onLogout,
-  avatarLabel
+  avatarLabel,
+  profileName
 }) {
   return (
     <header className="shell-navbar">
@@ -37,21 +41,49 @@ function Navbar({
       <div className="navbar-actions">
         <button
           type="button"
-          className="upload-button"
-          onClick={onUploadClick}
+          className="profile-chip"
+          onClick={onHomeClick}
         >
-          Upload video
+          <span className="avatar-badge" aria-hidden="true">
+            {avatarLabel}
+          </span>
+          <span className="profile-chip-text">{profileName}</span>
         </button>
-        <div className="avatar-badge" aria-hidden="true">
-          {avatarLabel}
-        </div>
-        <button
-          type="button"
-          className="logout-button"
-          onClick={onLogout}
-        >
-          Logout
-        </button>
+        {isLoggedIn ? (
+          <button
+            type="button"
+            className="upload-button"
+            onClick={onUploadClick}
+          >
+            Upload video
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="nav-button"
+              onClick={onLoginClick}
+            >
+              Login
+            </button>
+            <button
+              type="button"
+              className="nav-button"
+              onClick={onRegisterClick}
+            >
+              Register
+            </button>
+          </>
+        )}
+        {isLoggedIn ? (
+          <button
+            type="button"
+            className="logout-button"
+            onClick={onLogout}
+          >
+            Logout
+          </button>
+        ) : null}
       </div>
     </header>
   );
