@@ -4,15 +4,13 @@ import { API_ROUTES } from './apiRoutes';
 const initialValues = {
   username: '',
   email: '',
-  password: '',
-  role: 'ROLE_USER'
+  password: ''
 };
 
 const initialErrors = {
   username: '',
   email: '',
-  password: '',
-  role: ''
+  password: ''
 };
 
 function RegisterForm() {
@@ -89,8 +87,7 @@ function RegisterForm() {
         body: JSON.stringify({
           username: values.username.trim(),
           email: values.email.trim(),
-          password: values.password,
-          role: values.role || 'ROLE_USER'
+          password: values.password
         })
       });
 
@@ -128,7 +125,7 @@ function RegisterForm() {
     <form className="form" onSubmit={handleSubmit} noValidate>
       <div className="form-intro">
         <h3 className="form-title">Workspace setup</h3>
-        <p className="form-copy">Create a user, assign a role, and prepare the account for uploads.</p>
+        <p className="form-copy">Create a user and prepare the account for uploads.</p>
       </div>
       <div className="form-field">
         <label htmlFor="username" className="field-label">
@@ -164,24 +161,6 @@ function RegisterForm() {
           disabled={submitting}
         />
         {errors.email && <p className="field-error">{errors.email}</p>}
-      </div>
-
-      <div className="form-field">
-        <label htmlFor="role" className="field-label">
-          Role
-        </label>
-        <select
-          id="role"
-          name="role"
-          className="field-input"
-          value={values.role}
-          onChange={handleChange}
-          disabled={submitting}
-        >
-          <option value="ROLE_USER">User</option>
-          <option value="ROLE_ADMIN">Admin</option>
-        </select>
-        {errors.role && <p className="field-error">{errors.role}</p>}
       </div>
 
       <div className="form-field">

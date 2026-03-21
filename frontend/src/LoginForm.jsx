@@ -26,7 +26,7 @@ function LoginForm({ onLoginSuccess }) {
 
     const username = values.username.trim();
     if (!username) {
-      newErrors.username = 'Username is required.';
+      newErrors.username = 'Username or email is required.';
       isValid = false;
     }
 
@@ -66,7 +66,7 @@ function LoginForm({ onLoginSuccess }) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          username: values.username.trim(),
+          usernameOrEmail: values.username.trim(),
           password: values.password
         })
       });
@@ -101,11 +101,11 @@ function LoginForm({ onLoginSuccess }) {
     <form className="form" onSubmit={handleSubmit} noValidate>
       <div className="form-intro">
         <h3 className="form-title">Account access</h3>
-        <p className="form-copy">Use your username and password to continue to the dashboard.</p>
+        <p className="form-copy">Use your username or email and password to continue to the dashboard.</p>
       </div>
       <div className="form-field">
         <label htmlFor="username" className="field-label">
-          Username
+          Username or Email
         </label>
         <input
           id="username"
@@ -115,7 +115,7 @@ function LoginForm({ onLoginSuccess }) {
           value={values.username}
           onChange={handleChange}
           autoComplete="username"
-          placeholder="Enter your username"
+          placeholder="Enter your username or email"
           disabled={submitting}
         />
         {errors.username && <p className="field-error">{errors.username}</p>}
