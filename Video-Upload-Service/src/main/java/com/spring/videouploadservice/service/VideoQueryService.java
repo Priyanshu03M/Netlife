@@ -33,8 +33,8 @@ public class VideoQueryService {
         String normalizedQuery = normalizeQuery(query);
 
         log.debug("Listing videos: cursorCreatedAt={}, cursorId={}, query='{}', limit={}",
-                cursorPosition != null ? cursorPosition.getCreatedAt() : null,
-                cursorPosition != null ? cursorPosition.getId() : null,
+                cursorPosition != null ? cursorPosition.createdAt() : null,
+                cursorPosition != null ? cursorPosition.id() : null,
                 normalizedQuery,
                 pageSize);
 
@@ -97,8 +97,8 @@ public class VideoQueryService {
 
             return videoMetadataRepository.findNextPage(
                     UPLOADED_STATUS,
-                    cursorPosition.getCreatedAt(),
-                    cursorPosition.getId(),
+                    cursorPosition.createdAt(),
+                    cursorPosition.id(),
                     pageRequest
             );
         }
@@ -115,8 +115,8 @@ public class VideoQueryService {
         return videoMetadataRepository.findNextPageWithSearch(
                 UPLOADED_STATUS,
                 normalizedQuery,
-                cursorPosition.getCreatedAt(),
-                cursorPosition.getId(),
+                cursorPosition.createdAt(),
+                cursorPosition.id(),
                 pageRequest
         );
     }
@@ -153,8 +153,8 @@ public class VideoQueryService {
                     parts[1]
             );
             log.debug("Decoded cursor successfully: createdAt={}, id={}",
-                    cursorPosition.getCreatedAt(),
-                    cursorPosition.getId());
+                    cursorPosition.createdAt(),
+                    cursorPosition.id());
             return cursorPosition;
         } catch (IllegalArgumentException | DateTimeParseException exception) {
             log.warn("Failed to decode cursor: cursor={}", cursor, exception);

@@ -8,6 +8,7 @@ import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
 import io.minio.http.Method;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,6 +25,7 @@ public class StorageService {
 
     private final MinioClient minioClient;
 
+    @Getter
     @Value("${minio.bucket}")
     private String bucketName;
 
@@ -86,10 +88,6 @@ public class StorageService {
         } catch (Exception exception) {
             throw new StorageException("Failed to generate presigned URL", exception);
         }
-    }
-
-    public String getBucketName() {
-        return bucketName;
     }
 
     private void ensureBucketExists() throws Exception {
