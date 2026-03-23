@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -49,17 +50,15 @@ public class VideoController {
             @RequestParam("file") MultipartFile file,
             @RequestParam("title") String title,
             @RequestParam("description") String description,
-            @RequestHeader("X-User-Id") String userId,
-            @RequestHeader(value = "X-Channel-Name", required = false) String channelName
+            @RequestHeader("X-User-Id") String userId
     ) {
-        log.info("Received upload request: userId={}, channelName='{}', title='{}', fileName='{}', size={}",
+        log.info("Received upload request: userId={}, title='{}', fileName='{}', size={}",
                 userId,
-                channelName,
                 title,
                 file != null ? file.getOriginalFilename() : null,
                 file != null ? file.getSize() : null);
         UploadVideoDto uploadVideoDto = UploadVideoDto.of(file, title, description, userId);
-        UploadResponseDto response = uploadService.upload(uploadVideoDto, channelName);
+        UploadResponseDto response = uploadService.upload(uploadVideoDto, null);
         log.info("Upload request completed: objectKey={}, status={}", response.getObjectKey(), response.getStatus());
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
     }
