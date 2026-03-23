@@ -28,7 +28,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final List<String> PUBLIC_URLS = List.of(
             "/auth/login",
             "/auth/register",
-            "/auth/pages"
+            "/auth/pages",
+            "/videos"
     );
 
     @Override
@@ -51,20 +52,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             Claims claims = validateToken(token);
-            String username = claims.getSubject();
             List<String> roles = claims.get("roles", List.class);
+            String userId = claims.get("userId", String.class);
             List<SimpleGrantedAuthority> authorities =
                     roles.stream()
                             .map(SimpleGrantedAuthority::new)
                             .toList();
             UsernamePasswordAuthenticationToken auth =
                     new UsernamePasswordAuthenticationToken(
-                            username,
+                            userId,
                             null,
                             authorities
                     );
             SecurityContextHolder.getContext().setAuthentication(auth);
-            request.setAttribute("X-User-Id", username);
+            request.setAttribute("X-User-Id", userId);
         } catch (JwtException e) {
             SecurityContextHolder.clearContext();
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
