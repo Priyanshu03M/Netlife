@@ -53,6 +53,7 @@ public class AuthService {
                 .password(encodedPassword)
                 .role(Constant.ROLE_USER)
                 .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
                 .build();
 
         try {
