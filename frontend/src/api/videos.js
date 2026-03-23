@@ -120,6 +120,7 @@ export async function fetchVideos(token, { cursor = '', query = '', limit, signa
   const payload = await apiRequest(url.toString(), {
     method: 'GET',
     token,
+    includeAuth: false,
     signal
   });
 

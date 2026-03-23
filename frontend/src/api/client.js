@@ -84,11 +84,12 @@ function getStatusCode(status) {
 export async function apiRequest(url, options = {}) {
   const {
     token,
+    includeAuth = true,
     headers = {},
     signal,
     ...fetchOptions
   } = options;
-  const accessToken = token ?? getSession().accessToken;
+  const accessToken = includeAuth ? (token ?? getSession().accessToken) : '';
   const requestHeaders = buildHeaders(accessToken, headers);
 
   console.debug('[apiRequest] Sending request', {

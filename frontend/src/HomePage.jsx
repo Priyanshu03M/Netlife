@@ -58,13 +58,6 @@ function getVideoErrorContent(error) {
     };
   }
 
-  if (error.code === 'UNAUTHORIZED') {
-    return {
-      title: 'Session expired',
-      description: error.message || 'Please log in again to continue.'
-    };
-  }
-
   if (error.code === 'NETWORK_ERROR') {
     return {
       title: 'Network error',
@@ -292,17 +285,15 @@ function HomePage({
                 <section className="status-panel">
                   <h2 className="status-title">{videoErrorContent.title}</h2>
                   <p className="status-text">{videoErrorContent.description}</p>
-                  {error.code !== 'UNAUTHORIZED' ? (
-                    <button
-                      type="button"
-                      className="primary-button"
-                      onClick={() => {
-                        reload();
-                      }}
-                    >
-                      Retry
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    className="primary-button"
+                    onClick={() => {
+                      reload();
+                    }}
+                  >
+                    Retry
+                  </button>
                 </section>
               ) : videos.length === 0 ? (
                 <section className="status-panel">
