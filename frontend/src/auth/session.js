@@ -1,16 +1,14 @@
 const STORAGE_KEYS = {
   accessToken: 'accessToken',
   refreshToken: 'refreshToken',
-  username: 'username',
-  userId: 'userId'
+  username: 'username'
 };
 
 export function getSession() {
   return {
     accessToken: window.localStorage.getItem(STORAGE_KEYS.accessToken) || '',
     refreshToken: window.localStorage.getItem(STORAGE_KEYS.refreshToken) || '',
-    username: window.localStorage.getItem(STORAGE_KEYS.username) || '',
-    userId: window.localStorage.getItem(STORAGE_KEYS.userId) || ''
+    username: window.localStorage.getItem(STORAGE_KEYS.username) || ''
   };
 }
 
@@ -21,7 +19,6 @@ export function hasSession() {
 export function saveSession(authData = {}, fallbackUsername = '') {
   const accessToken = authData.accessToken || '';
   const refreshToken = authData.refreshToken || '';
-  const userId = authData.userId || authData.id || '';
   const username = authData.username || fallbackUsername || '';
 
   if (accessToken) {
@@ -33,15 +30,14 @@ export function saveSession(authData = {}, fallbackUsername = '') {
   if (username) {
     window.localStorage.setItem(STORAGE_KEYS.username, username);
   }
-  if (userId) {
-    window.localStorage.setItem(STORAGE_KEYS.userId, String(userId));
-  }
+  window.localStorage.removeItem('userId');
 }
 
 export function clearSession() {
   Object.values(STORAGE_KEYS).forEach((key) => {
     window.localStorage.removeItem(key);
   });
+  window.localStorage.removeItem('userId');
 }
 
 export function getAvatarLabel(username) {

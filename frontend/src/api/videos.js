@@ -1,6 +1,5 @@
 import { apiRequest, ApiError } from './client';
 import { API_ROUTES } from '../apiRoutes';
-import { getSession } from '../auth/session';
 
 function isIsoDateString(value) {
   if (typeof value !== 'string') {
@@ -173,15 +172,6 @@ export async function fetchVideos(token, { cursor = '', query = '', limit, signa
 }
 
 export async function uploadVideo(token, { file, title, description }) {
-  const { userId } = getSession();
-
-  if (!userId) {
-    throw new ApiError('User ID is missing from the current session.', {
-      code: 'MISSING_USER_ID',
-      kind: 'auth'
-    });
-  }
-
   const formData = new FormData();
   formData.append('file', file);
   formData.append('title', title);
@@ -189,7 +179,6 @@ export async function uploadVideo(token, { file, title, description }) {
 
   console.debug('[videos] Uploading video', {
     endpoint: API_ROUTES.videoUpload,
-    userId,
     title,
     descriptionLength: description.length,
     fileName: file?.name || null,
@@ -200,9 +189,6 @@ export async function uploadVideo(token, { file, title, description }) {
   return apiRequest(API_ROUTES.videoUpload, {
     method: 'POST',
     token,
-    headers: {
-      'X-User-Id': userId
-    },
     body: formData
   });
 }

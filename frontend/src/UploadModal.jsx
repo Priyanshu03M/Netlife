@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { uploadVideo } from './api/videos';
 import { ApiError } from './api/client';
-import { getSession } from './auth/session';
 
 const initialValues = {
   title: '',
@@ -20,9 +19,8 @@ function UploadModal({ isOpen, onClose, onUploadSuccess }) {
       return;
     }
 
-    const session = getSession();
     setValues(initialValues);
-    setError(session.userId ? '' : 'User ID is missing from the current session.');
+    setError('');
     setSuccessMessage('');
     setSubmitting(false);
   }, [isOpen]);
@@ -54,12 +52,6 @@ function UploadModal({ isOpen, onClose, onUploadSuccess }) {
 
     const title = values.title.trim();
     const description = values.description.trim();
-    const session = getSession();
-
-    if (!session.userId) {
-      setError('User ID is missing from the current session.');
-      return;
-    }
 
     if (!title) {
       setError('Title is required.');
