@@ -44,6 +44,7 @@ function App() {
     try {
       const response = await apiRequest(API_ROUTES.logout, {
         method: 'POST',
+        includeAuth: false,
         headers: {
           'Content-Type': 'application/json',
         },

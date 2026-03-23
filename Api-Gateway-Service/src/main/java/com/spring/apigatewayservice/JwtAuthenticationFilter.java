@@ -7,7 +7,6 @@ import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
@@ -30,6 +29,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final List<String> PUBLIC_URLS = List.of(
             "/auth/login",
             "/auth/register",
+            "/auth/refresh",
+            "/auth/logout",
             "/auth/pages"
     );
 
@@ -37,7 +38,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
         return PUBLIC_URLS.contains(path)
-                || (HttpMethod.GET.matches(request.getMethod()) && "/videos".equals(path));
+                || (HttpMethod.GET.matches(request.getMethod())
+                && ("/videos".equals(path) || path.startsWith("/videos/")));
     }
 
     @Override
@@ -51,7 +53,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String token = header.substring(7);
-        HttpServletRequest wrappedRequest = request;
 
         try {
             Claims claims = validateToken(token);
@@ -68,21 +69,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             authorities
                     );
             SecurityContextHolder.getContext().setAuthentication(auth);
-            wrappedRequest = new HttpServletRequestWrapper(request) {
-                @Override
-                public String getHeader(String name) {
-                    if ("X-User-Id".equalsIgnoreCase(name)) {
-                        return userId;
-                    }
-                    return super.getHeader(name);
-                }
-            };
+            request.setAttribute(GatewayRequestUserIdFilter.AUTHENTICATED_USER_ID_ATTR, userId);
         } catch (JwtException e) {
             SecurityContextHolder.clearContext();
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("Invalid Token");
+            return;
         }
-        filterChain.doFilter(wrappedRequest, response);
+        filterChain.doFilter(request, response);
     }
 
     private Claims validateToken(String token) {

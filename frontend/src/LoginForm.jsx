@@ -70,19 +70,18 @@ function LoginForm({ onLoginSuccess }) {
           password: values.password
         })
       });
-      const { accessToken, refreshToken, userId, id } = body || {};
+      const { accessToken, refreshToken } = body || {};
 
       saveSession({
         accessToken,
         refreshToken,
-        username: values.username.trim(),
-        userId: userId || id || ''
+        username: values.username.trim()
       });
 
       setServerMessage('Login successful.');
       setServerTone('success');
       if (typeof onLoginSuccess === 'function') {
-        onLoginSuccess({ accessToken, refreshToken, userId: userId || id || '' });
+        onLoginSuccess({ accessToken, refreshToken });
       }
       setValues(initialValues);
     } catch (err) {
@@ -157,4 +156,3 @@ function LoginForm({ onLoginSuccess }) {
 }
 
 export default LoginForm;
-
