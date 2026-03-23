@@ -7,6 +7,7 @@ import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -49,6 +50,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         String token = header.substring(7);
+        HttpServletRequest wrappedRequest = request;
 
         try {
             Claims claims = validateToken(token);
@@ -65,13 +67,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             authorities
                     );
             SecurityContextHolder.getContext().setAuthentication(auth);
-            request.setAttribute("X-User-Id", userId);
+            wrappedRequest = new HttpServletRequestWrapper(request) {
+                @Override
+                public String getHeader(String name) {
+                    if ("X-User-Id".equalsIgnoreCase(name)) {
+                        return userId;
+                    }
+                    return super.getHeader(name);
+                }
+            };
         } catch (JwtException e) {
             SecurityContextHolder.clearContext();
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("Invalid Token");
         }
-        filterChain.doFilter(request, response);
+        filterChain.doFilter(wrappedRequest, response);
     }
 
     private Claims validateToken(String token) {
