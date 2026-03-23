@@ -2,6 +2,7 @@ package com.spring.apigatewayservice;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -34,7 +35,8 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/login", "/auth/register", "/auth/pages", "/videos/upload").permitAll()
+                        .requestMatchers("/auth/login", "/auth/register", "/auth/pages").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/videos").permitAll()
                         .requestMatchers("/auth/pages1").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
