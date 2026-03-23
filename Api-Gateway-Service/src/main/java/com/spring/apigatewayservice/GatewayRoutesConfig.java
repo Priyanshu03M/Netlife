@@ -6,7 +6,7 @@ import org.springframework.web.servlet.function.RequestPredicates;
 import org.springframework.web.servlet.function.RouterFunction;
 import org.springframework.web.servlet.function.ServerResponse;
 
-import static org.springframework.cloud.gateway.server.mvc.filter.BeforeFilterFunctions.uri;
+import static org.springframework.cloud.gateway.server.mvc.filter.LoadBalancerFilterFunctions.lb;
 import static org.springframework.cloud.gateway.server.mvc.handler.GatewayRouterFunctions.route;
 import static org.springframework.cloud.gateway.server.mvc.handler.HandlerFunctions.http;
 
@@ -17,20 +17,20 @@ public class GatewayRoutesConfig {
     RouterFunction<ServerResponse> gatewayRoutes(GatewayRequestUserIdFilter gatewayRequestUserIdFilter) {
         return route("auth-service")
                 .route(RequestPredicates.path("/auth/**"), http())
-                .before(uri("lb://AUTHSERVICE"))
+                .filter(lb("AUTHSERVICE"))
                 .build()
                 .and(
                         route("video-upload-service")
                                 .route(RequestPredicates.path("/videos")
                                         .or(RequestPredicates.path("/videos/**")), http())
-                                .before(uri("lb://VIDEOUPLOADSERVICE"))
+                                .filter(lb("VIDEOUPLOADSERVICE"))
                                 .before(gatewayRequestUserIdFilter.addAuthenticatedUserIdHeader())
                                 .build()
                 )
                 .and(
                         route("message-service")
                                 .route(RequestPredicates.path("/message/**"), http())
-                                .before(uri("lb://MESSAGESERVCIE"))
+                                .filter(lb("MESSAGESERVICE"))
                                 .build()
                 );
     }
