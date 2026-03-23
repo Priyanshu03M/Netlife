@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { uploadVideo } from './api/videos';
 import { ApiError } from './api/client';
-import { getSession, saveSession } from './auth/session';
+import { getSession } from './auth/session';
 
 const initialValues = {
-  userId: '',
   title: '',
   description: '',
   file: null
@@ -22,11 +21,8 @@ function UploadModal({ isOpen, onClose, onUploadSuccess }) {
     }
 
     const session = getSession();
-    setValues({
-      ...initialValues,
-      userId: session.userId || ''
-    });
-    setError('');
+    setValues(initialValues);
+    setError(session.userId ? '' : 'User ID is missing from the current session.');
     setSuccessMessage('');
     setSubmitting(false);
   }, [isOpen]);
@@ -56,12 +52,12 @@ function UploadModal({ isOpen, onClose, onUploadSuccess }) {
     setError('');
     setSuccessMessage('');
 
-    const userId = values.userId.trim();
     const title = values.title.trim();
     const description = values.description.trim();
+    const session = getSession();
 
-    if (!userId) {
-      setError('User ID is required.');
+    if (!session.userId) {
+      setError('User ID is missing from the current session.');
       return;
     }
 
@@ -79,19 +75,14 @@ function UploadModal({ isOpen, onClose, onUploadSuccess }) {
 
     try {
       const payload = await uploadVideo(undefined, {
-        userId,
         file: values.file,
         title,
         description
       });
       const message = payload?.message || 'Upload completed.';
 
-      saveSession({ userId });
       setSuccessMessage(message);
-      setValues({
-        ...initialValues,
-        userId
-      });
+      setValues(initialValues);
 
       if (typeof onUploadSuccess === 'function') {
         onUploadSuccess();
@@ -135,22 +126,6 @@ function UploadModal({ isOpen, onClose, onUploadSuccess }) {
         </div>
 
         <form className="form" onSubmit={handleSubmit}>
-          <div className="form-field">
-            <label htmlFor="userId" className="field-label">
-              User ID
-            </label>
-            <input
-              id="userId"
-              name="userId"
-              type="text"
-              className="field-input"
-              value={values.userId}
-              onChange={handleChange}
-              placeholder="Enter X-User-Id"
-              disabled={submitting}
-            />
-          </div>
-
           <div className="form-field">
             <label htmlFor="title" className="field-label">
               Title
