@@ -76,7 +76,7 @@ public class AuthService {
 
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
-        JwtUser user = new JwtUser(userDetails.getUsername(), userDetails.getAuthorities());
+        JwtUser user = new JwtUser(userDetails.getUsername(), userDetails.getPerson().getId(), userDetails.getAuthorities());
 
         String refreshToken = generateRefreshToken(userDetails.getPerson());
         String accessToken = jwtUtil.generateAccessToken(user);
@@ -96,7 +96,7 @@ public class AuthService {
             Person person = refreshTokenOpt.get().getPerson();
             List<GrantedAuthority> grantedAuthorities =
                     List.of(new SimpleGrantedAuthority(person.getRole()));
-            JwtUser user = new JwtUser(person.getUsername(), grantedAuthorities);
+            JwtUser user = new JwtUser(person.getUsername(), person.getId(), grantedAuthorities);
             String accessToken = jwtUtil.generateAccessToken(user);
             return JwtResponse.builder().accessToken(accessToken).refreshToken(refreshTokenOpt.get().getToken()).build();
         }

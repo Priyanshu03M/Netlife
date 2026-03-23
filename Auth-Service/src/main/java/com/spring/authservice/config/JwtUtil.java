@@ -22,6 +22,7 @@ public class JwtUtil {
     public String generateAccessToken(JwtUser user) {
         return Jwts.builder()
                 .setSubject(user.username())
+                .claim("userId", user.userId())
                 .claim("roles", user.authorities()
                         .stream()
                         .map(GrantedAuthority::getAuthority)

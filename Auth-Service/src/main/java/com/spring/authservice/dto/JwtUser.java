@@ -9,6 +9,7 @@ import java.util.Collection;
 
 public record JwtUser(
         @NotBlank(message = "Username is required") String username,
+        @NotBlank(message = "User id is required") String userId,
         @NotNull(message = "Authorities are required")
         @NotEmpty(message = "Authorities must not be empty") Collection<? extends GrantedAuthority> authorities
 ) {
