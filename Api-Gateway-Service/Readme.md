@@ -1,54 +1,61 @@
-# Api-Gateway-Service
+# API Gateway Service
 
-API Gateway for Netlife using Spring Cloud Gateway (MVC) and Eureka discovery.
+A lightweight API Gateway built with Spring Cloud Gateway (MVC) for routing requests to microservices with JWT-based authentication.
 
 ## Tech Stack
 - Java 17
-- Spring Boot 4.0.2
-- Spring Cloud 2025.1.0
+- Spring Boot 4
+- Spring Cloud Gateway Server WebMVC
 - Spring Security
+- Eureka Client + Spring Cloud LoadBalancer
 - JJWT (`io.jsonwebtoken`)
+- Maven
 
-## Current Configuration
-- `spring.application.name=ApiGatewayService`
-- `server.port=8765`
-- `eureka.client.service-url.defaultZone=${EUREKA_SERVER_URL}`
-- `jwt.secret=${JWT_SECRET}`
+## Key Features
+- Centralized routing for `auth` and `videos` services
+- Service discovery with Eureka
+- Load-balanced service calls (`lb://`)
+- JWT authentication filter for protected APIs
+- CORS enabled for frontend integration
 
-## Route Configuration
-- Route ID: `auth-service`
-- URI: `lb://AUTHSERVICE`
-- Predicate: `Path=/auth/**`
+## Routes
 
-## Security Behavior
-Public paths:
-- `/auth/login`
-- `/auth/register`
-- `/auth/pages`
+### Public Routes
+- `POST /auth/login`
+- `POST /auth/register`
+- `POST /auth/refresh`
+- `POST /auth/logout`
+- `GET /videos/fetch`
 
-Protected:
-- Any other path requires a valid bearer token.
+### Private Routes
+- `POST /videos/upload`
+- Any non-public route requires authentication
 
-Header format:
-- `Authorization: Bearer <jwt>`
+## Basic Setup
 
-## Required Environment Variables
-- `EUREKA_SERVER_URL`
-  - Example: `http://localhost:8761/eureka`
-- `JWT_SECRET`
+### 1. Set environment variables
+```bash
+EUREKA_SERVER_URL=http://localhost:8761/eureka
+JWT_SECRET=your-secret-key
+```
 
-## Run Locally
-From `Api-Gateway-Service`:
-
+### 2. Run the gateway
 ```bash
 ./mvnw spring-boot:run
 ```
 
-On PowerShell:
-
+PowerShell:
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
 
-## Local URL
-- `http://localhost:8765`
+### 3. Default URL
+```text
+http://localhost:8765
+```
+
+## Security (JWT)
+- Send token in header: `Authorization: Bearer <token>`
+- Public endpoints are accessible without token
+- Protected endpoints require a valid JWT
+- Invalid/expired token returns `401 Unauthorized`

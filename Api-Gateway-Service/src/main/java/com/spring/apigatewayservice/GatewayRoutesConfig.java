@@ -6,6 +6,8 @@ import org.springframework.web.servlet.function.RequestPredicates;
 import org.springframework.web.servlet.function.RouterFunction;
 import org.springframework.web.servlet.function.ServerResponse;
 
+import java.util.List;
+
 import static org.springframework.cloud.gateway.server.mvc.filter.LoadBalancerFilterFunctions.lb;
 import static org.springframework.cloud.gateway.server.mvc.handler.GatewayRouterFunctions.route;
 import static org.springframework.cloud.gateway.server.mvc.handler.HandlerFunctions.http;
@@ -13,25 +15,28 @@ import static org.springframework.cloud.gateway.server.mvc.handler.HandlerFuncti
 @Configuration
 public class GatewayRoutesConfig {
 
+    public static final List<String> PUBLIC_URLS = List.of(
+            "/auth/login",
+            "/auth/register",
+            "/auth/refresh",
+            "/auth/logout",
+            "/videos/fetch"
+    );
+    public static final List<String> PRIVATE_URLS = List.of(
+            "/videos/upload"
+    );
+
     @Bean
-    RouterFunction<ServerResponse> gatewayRoutes(GatewayRequestUserIdFilter gatewayRequestUserIdFilter) {
-        return route("auth-service")
-                .route(RequestPredicates.path("/auth/**"), http())
-                .filter(lb("AUTHSERVICE"))
-                .build()
-                .and(
-                        route("video-upload-service")
-                                .route(RequestPredicates.path("/videos")
-                                        .or(RequestPredicates.path("/videos/**")), http())
-                                .filter(lb("VIDEOUPLOADSERVICE"))
-                                .before(gatewayRequestUserIdFilter.addAuthenticatedUserIdHeader())
-                                .build()
+    RouterFunction<ServerResponse> gatewayRoutes() {
+        return route()
+                .path("/auth/**", builder -> builder
+                        .route(RequestPredicates.all(), http())
+                        .filter(lb("AUTHSERVICE"))
                 )
-                .and(
-                        route("message-service")
-                                .route(RequestPredicates.path("/message/**"), http())
-                                .filter(lb("MESSAGESERVICE"))
-                                .build()
-                );
+                .path("/videos/**", builder -> builder
+                        .route(RequestPredicates.all(), http())
+                        .filter(lb("VIDEOUPLOADSERVICE"))
+                )
+                .build();
     }
 }

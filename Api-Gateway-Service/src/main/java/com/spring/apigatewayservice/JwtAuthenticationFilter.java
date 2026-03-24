@@ -19,6 +19,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Optional;
+
+import static com.spring.apigatewayservice.GatewayRoutesConfig.PUBLIC_URLS;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -26,20 +29,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Value("${jwt.secret}")
     private String SECRET;
 
-    private static final List<String> PUBLIC_URLS = List.of(
-            "/auth/login",
-            "/auth/register",
-            "/auth/refresh",
-            "/auth/logout",
-            "/auth/pages"
-    );
+    private static final String BEARER_PREFIX = "Bearer ";
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        return PUBLIC_URLS.contains(path)
-                || (HttpMethod.GET.matches(request.getMethod())
-                && ("/videos".equals(path) || path.startsWith("/videos/")));
+        return PUBLIC_URLS.contains(path);
     }
 
     @Override
@@ -47,21 +42,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String header = request.getHeader("Authorization");
 
-        if (header == null || !header.startsWith("Bearer ")) {
+        if (header == null || !header.startsWith(BEARER_PREFIX)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String token = header.substring(7);
+        String token = header.substring(BEARER_PREFIX.length());
 
         try {
             Claims claims = validateToken(token);
+
             List<String> roles = claims.get("roles", List.class);
             String userId = claims.get("userId", String.class);
-            List<SimpleGrantedAuthority> authorities =
-                    roles.stream()
-                            .map(SimpleGrantedAuthority::new)
-                            .toList();
+
+            List<SimpleGrantedAuthority> authorities = Optional.ofNullable(roles)
+                    .orElse(List.of())
+                    .stream()
+                    .map(SimpleGrantedAuthority::new)
+                    .toList();
+
             UsernamePasswordAuthenticationToken auth =
                     new UsernamePasswordAuthenticationToken(
                             userId,
@@ -69,13 +68,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             authorities
                     );
             SecurityContextHolder.getContext().setAuthentication(auth);
-            request.setAttribute(GatewayRequestUserIdFilter.AUTHENTICATED_USER_ID_ATTR, userId);
+
         } catch (JwtException e) {
             SecurityContextHolder.clearContext();
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("Invalid Token");
             return;
         }
+
         filterChain.doFilter(request, response);
     }
 
