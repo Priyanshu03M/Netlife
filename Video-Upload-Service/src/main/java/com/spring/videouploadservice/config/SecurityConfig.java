@@ -24,6 +24,8 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .logout(AbstractHttpConfigurer::disable)
                 .csrf(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm ->
                         sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
@@ -33,4 +35,5 @@ public class SecurityConfig {
 
         return http.build();
     }
+
 }

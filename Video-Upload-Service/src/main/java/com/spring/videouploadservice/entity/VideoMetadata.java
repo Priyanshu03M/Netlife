@@ -4,17 +4,14 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @AllArgsConstructor
 @Builder
 @Entity
-@Getter
+@Data
 @NoArgsConstructor
 @Table(name = "videos")
 public class VideoMetadata {
@@ -30,30 +27,23 @@ public class VideoMetadata {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "bucket_url", nullable = false)
-    private String bucketUrl;
+    @Column(name = "processed_path")
+    private String processedPath;
 
     @Column(name = "object_key", nullable = false)
     private String objectKey;
 
-    @Column(name = "thumbnail_object_key")
-    private String thumbnailObjectKey;
-
-    @Column(name = "channel_name", nullable = false, columnDefinition = "VARCHAR(255)")
-    private String channelName;
-
     @Column(nullable = false)
     private Long views;
-
     private Long size;
     private Integer duration;
-
-    @Column(nullable = false)
-    private String format;
 
     @Column(nullable = false)
     private String status;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 }
