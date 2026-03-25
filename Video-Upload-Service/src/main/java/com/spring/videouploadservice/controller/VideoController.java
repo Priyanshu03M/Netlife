@@ -33,7 +33,7 @@ public class VideoController {
             @RequestParam(value = "cursor", required = false) String cursor,
             @RequestParam(value = "query", required = false) String query,
             @RequestParam(value = "limit", required = false) Integer limit
-    ) {
+    ){
         log.info("Received list videos request: cursorPresent={}, query='{}', limit={}",
                 cursor != null && !cursor.isBlank(),
                 query,
