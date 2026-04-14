@@ -1,74 +1,69 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchVideos } from '../api/videos';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { fetchVideoFeed, fetchVideoMetadata } from '../api/videos';
+import { ApiError } from '../api/client';
 
-export function useVideos({ query = '', limit = 10 } = {}) {
+async function fetchMetadataBatch(ids, { signal } = {}) {
+  const settled = await Promise.allSettled(
+    ids.map((id) => fetchVideoMetadata(id, { signal }))
+  );
+
+  const fulfilled = settled
+    .filter((result) => result.status === 'fulfilled')
+    .map((result) => result.value);
+
+  if (ids.length > 0 && fulfilled.length === 0) {
+    const firstFailure = settled.find((result) => result.status === 'rejected');
+    throw new ApiError(firstFailure?.reason?.message || 'Failed to load video metadata.', {
+      code: firstFailure?.reason?.code || 'REQUEST_FAILED',
+      kind: firstFailure?.reason?.kind || 'api',
+      details: firstFailure?.reason
+    });
+  }
+
+  return fulfilled;
+}
+
+export function useVideos({ query = '' } = {}) {
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
-  const [nextCursor, setNextCursor] = useState(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [pageLimit, setPageLimit] = useState(limit);
   const activeRequestRef = useRef(0);
 
-  const load = useCallback(async ({ cursor = '', append = false, signal } = {}) => {
+  const load = useCallback(async ({ signal } = {}) => {
     const requestId = activeRequestRef.current + 1;
     activeRequestRef.current = requestId;
 
-    if (append) {
-      setLoadingMore(true);
-    } else {
-      setLoading(true);
-    }
+    setLoading(true);
     setError(null);
 
     try {
-      const result = await fetchVideos(undefined, {
-        cursor,
-        query,
-        limit,
-        signal
-      });
+      const ids = await fetchVideoFeed({ signal });
+      const metadata = await fetchMetadataBatch(ids, { signal });
 
       if (signal?.aborted || requestId !== activeRequestRef.current) {
         return;
       }
 
-      setVideos((current) => (append ? [...current, ...result.items] : result.items));
-      setNextCursor(result.nextCursor);
-      setHasMore(result.hasMore);
-      setPageLimit(typeof result.limit === 'number' ? result.limit : limit);
+      setVideos(metadata);
     } catch (err) {
       if (signal?.aborted || err?.name === 'AbortError' || requestId !== activeRequestRef.current) {
         return;
       }
 
-      if (!append) {
-        setVideos([]);
-        setNextCursor(null);
-        setHasMore(false);
-      }
+      setVideos([]);
       setError(err);
     } finally {
       if (signal?.aborted || requestId !== activeRequestRef.current) {
         return;
       }
-
-      if (append) {
-        setLoadingMore(false);
-      } else {
-        setLoading(false);
-      }
+      setLoading(false);
     }
-  }, [limit, query]);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
     load({ signal: controller.signal });
-
-    return () => {
-      controller.abort();
-    };
+    return () => controller.abort();
   }, [load]);
 
   const reload = useCallback(async () => {
@@ -76,27 +71,22 @@ export function useVideos({ query = '', limit = 10 } = {}) {
     await load({ signal: controller.signal });
   }, [load]);
 
-  const loadMore = useCallback(async () => {
-    if (!nextCursor || !hasMore || loadingMore) {
-      return;
+  const filteredVideos = useMemo(() => {
+    const q = typeof query === 'string' ? query.trim().toLowerCase() : '';
+    if (!q) {
+      return videos;
     }
 
-    await load({
-      cursor: nextCursor,
-      append: true
+    return videos.filter((video) => {
+      const haystack = `${video.title} ${video.description} ${video.id}`.toLowerCase();
+      return haystack.includes(q);
     });
-  }, [hasMore, load, loadingMore, nextCursor]);
+  }, [query, videos]);
 
   return {
-    videos,
+    videos: filteredVideos,
     loading,
-    loadingMore,
     error,
-    nextCursor,
-    hasMore,
-    limit: pageLimit,
-    query,
-    reload,
-    loadMore
+    reload
   };
 }

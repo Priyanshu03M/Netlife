@@ -5,17 +5,15 @@ import React, { memo } from 'react';
  *   video: {
  *     id: string,
  *     title: string,
- *     channelName: string,
- *     thumbnailUrl?: string,
+ *     description?: string,
  *     views: number,
- *     createdAt: string
+ *     duration?: number | null,
+ *     size?: number | null
  *   },
- *   viewLabel: string,
- *   timeAgoLabel: string,
  *   onOpen: (videoId: string) => void
  * }} props
  */
-function VideoCard({ video, viewLabel, timeAgoLabel, onOpen }) {
+function VideoCard({ video, onOpen }) {
   return (
     <article className="video-card">
       <button
@@ -25,27 +23,18 @@ function VideoCard({ video, viewLabel, timeAgoLabel, onOpen }) {
       >
         <div className="video-thumb-wrap">
           <span className="video-card-pill">Uploaded</span>
-          {video.thumbnailUrl ? (
-            <img
-              className="video-thumb"
-              src={video.thumbnailUrl}
-              alt={video.title}
-              loading="lazy"
-            />
-          ) : (
-            <div className="video-thumb video-thumb-placeholder">
-              <span className="video-thumb-placeholder-text">Netlife</span>
-            </div>
-          )}
+          <div className="video-thumb video-thumb-placeholder">
+            <span className="video-thumb-placeholder-text">Netlife</span>
+          </div>
         </div>
         <div className="video-card-body">
           <h3 className="video-title">{video.title}</h3>
-          <p className="video-channel">{video.channelName}</p>
+          <p className="video-channel">{video.id}</p>
           {video.description ? (
             <p className="video-description">{video.description}</p>
           ) : null}
           <p className="video-meta">
-            {viewLabel} - {timeAgoLabel}
+            {Number.isFinite(video.views) ? `${video.views} view${video.views === 1 ? '' : 's'}` : '0 views'}
           </p>
         </div>
       </button>

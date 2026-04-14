@@ -35,6 +35,7 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
                                 "/auth/login",
                                 "/auth/register",
@@ -42,9 +43,18 @@ public class SecurityConfig {
                                 "/auth/logout",
                                 "/auth/pages"
                         ).permitAll()
-                        .requestMatchers(HttpMethod.GET, "/videos", "/videos/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/videos/upload").authenticated()
-                        .requestMatchers("/auth/pages1").hasRole("ADMIN")
+
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/videos/**"
+                        ).permitAll()
+
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/videos/initiate-upload",
+                                "/videos/complete-upload"
+                        ).authenticated()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
@@ -63,7 +73,8 @@ public class SecurityConfig {
 
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+        // For local dev: allow common localhost origins/ports (cannot use "*" with credentials).
+        configuration.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
         configuration.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
@@ -76,4 +87,3 @@ public class SecurityConfig {
         return source;
     }
 }
-

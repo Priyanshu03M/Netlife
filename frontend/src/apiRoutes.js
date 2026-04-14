@@ -7,6 +7,11 @@ export const API_ROUTES = {
   refresh: `${API_BASE_URL}/auth/refresh`,
   logout: `${API_BASE_URL}/auth/logout`,
   pages: `${API_BASE_URL}/auth/pages`,
-  videos: `${API_BASE_URL}/videos`,
-  videoUpload: `${API_BASE_URL}/videos/upload`
+  videoFeed: `${API_BASE_URL}/videos/feed`,
+  videoById: (id) => `${API_BASE_URL}/videos/${id}`,
+  videoPlayById: (id) => `${API_BASE_URL}/videos/${id}/play`,
+  videoInitiateUpload: `${API_BASE_URL}/videos/initiate-upload`,
+  // Prefer direct service for completion as documented, but fall back to gateway on CORS/network issues.
+  videoCompleteUploadDirect: `${VIDEOS_API_BASE_URL}/videos/complete-upload`,
+  videoCompleteUploadGateway: `${API_BASE_URL}/videos/complete-upload`
 };
