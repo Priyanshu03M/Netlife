@@ -87,6 +87,69 @@ video {
   max-width: 100%;
 }
 
+.upload-status {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(69, 97, 110, 0.1);
+}
+
+.upload-status-row {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.upload-step {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(22, 49, 61, 0.06);
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.upload-step-active {
+  background: rgba(127, 201, 159, 0.22);
+  color: var(--color-primary);
+}
+
+.upload-progress {
+  position: relative;
+  height: 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(69, 97, 110, 0.14);
+  overflow: hidden;
+  background: rgba(22, 49, 61, 0.05);
+}
+
+.upload-progress-bar {
+  height: 100%;
+  background: var(--gradient-primary);
+  width: 0%;
+  transition: width 180ms ease-out;
+}
+
+.upload-progress-label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgba(22, 49, 61, 0.78);
+}
+
+.watch-helper-error {
+  margin-top: var(--space-3);
+  color: var(--color-danger);
+}
+
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,

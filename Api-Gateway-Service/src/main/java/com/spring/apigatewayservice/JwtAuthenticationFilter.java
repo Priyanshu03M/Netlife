@@ -39,7 +39,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getServletPath();
         return PUBLIC_URLS.contains(path)
                 || (HttpMethod.GET.matches(request.getMethod())
-                && ("/videos".equals(path) || path.startsWith("/videos/")));
+                && path.startsWith("/videos/"));
     }
 
     @Override
@@ -69,7 +69,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             authorities
                     );
             SecurityContextHolder.getContext().setAuthentication(auth);
-            request.setAttribute(GatewayRequestUserIdFilter.AUTHENTICATED_USER_ID_ATTR, userId);
         } catch (JwtException e) {
             SecurityContextHolder.clearContext();
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);

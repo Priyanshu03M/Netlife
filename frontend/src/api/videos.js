@@ -1,194 +1,195 @@
 import { apiRequest, ApiError } from './client';
 import { API_ROUTES } from '../apiRoutes';
 
-function isIsoDateString(value) {
-  if (typeof value !== 'string') {
-    return false;
-  }
-
-  const isoDatePattern =
-    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?$/;
-
-  return isoDatePattern.test(value) && !Number.isNaN(new Date(value).getTime());
-}
-
-export function normalizeVideo(raw) {
-  const problems = [];
-
-  if (!raw || typeof raw !== 'object') {
-    console.warn('Rejected video: expected object.', raw);
+export function normalizeVideoMetadata(payload, fallbackId = '') {
+  if (!payload || typeof payload !== 'object') {
     return null;
   }
 
-  const id = typeof raw.id === 'string' ? raw.id.trim() : '';
+  const id = typeof payload.id === 'string' ? payload.id : fallbackId;
+  const title = typeof payload.title === 'string' ? payload.title : '';
+  const description = typeof payload.description === 'string' ? payload.description : '';
+  const views = typeof payload.views === 'number' ? payload.views : 0;
+  const size = typeof payload.size === 'number' ? payload.size : null;
+  const duration = typeof payload.duration === 'number' ? payload.duration : null;
+
   if (!id) {
-    problems.push('id must be a non-empty string');
-  }
-
-  const title = typeof raw.title === 'string' ? raw.title.trim() : '';
-  if (!title) {
-    problems.push('title must be a non-empty string');
-  }
-
-  const videoUrl = typeof raw.videoUrl === 'string' ? raw.videoUrl.trim() : '';
-  if (!videoUrl) {
-    problems.push('videoUrl must be a non-empty string');
-  }
-
-  const channelName = typeof raw.channelName === 'string' ? raw.channelName.trim() : '';
-  if (!channelName) {
-    problems.push('channelName must be a non-empty string');
-  }
-
-  const views = raw.views;
-  if (typeof views !== 'number' || Number.isNaN(views) || views < 0) {
-    problems.push('views must be a number greater than or equal to 0');
-  }
-
-  const createdAt = typeof raw.createdAt === 'string' ? raw.createdAt.trim() : '';
-  if (!isIsoDateString(createdAt)) {
-    problems.push('createdAt must be a valid ISO date string');
-  }
-
-  if (problems.length > 0) {
-    console.warn('Rejected video item:', {
-      reasons: problems,
-      item: raw
-    });
     return null;
   }
 
   return {
     id,
-    title,
-    description: typeof raw.description === 'string' ? raw.description : '',
-    videoUrl,
-    thumbnailUrl: typeof raw.thumbnailUrl === 'string' ? raw.thumbnailUrl : '',
-    channelName,
+    title: title || `Video ${id.slice(0, 8)}`,
+    description,
     views,
-    createdAt
+    size,
+    duration
   };
 }
 
-function extractCollection(payload) {
-  if (Array.isArray(payload)) {
-    return {
-      items: payload,
-      nextCursor: null,
-      hasMore: false
-    };
-  }
-
-  if (payload && typeof payload === 'object') {
-    if (Array.isArray(payload.items)) {
-      return {
-        items: payload.items,
-        nextCursor: typeof payload.nextCursor === 'string' ? payload.nextCursor : null,
-        hasMore: typeof payload.hasMore === 'boolean' ? payload.hasMore : false
-      };
-    }
-  }
-
-  throw new ApiError('Malformed video response: expected an array or paged object.', {
-    code: 'MALFORMED_DATA',
-    kind: 'validation',
-    details: payload
-  });
-}
-
-export async function fetchVideos(token, { cursor = '', query = '', limit, signal } = {}) {
-  const url = new URL(API_ROUTES.videos);
-  if (cursor) {
-    url.searchParams.set('cursor', cursor);
-  }
-  if (query) {
-    url.searchParams.set('query', query);
-  }
-  if (typeof limit === 'number' && Number.isFinite(limit)) {
-    url.searchParams.set('limit', String(limit));
-  }
-
-  console.debug('[videos] Fetching videos', {
-    endpoint: API_ROUTES.videos,
-    requestUrl: url.toString(),
-    cursor: cursor || null,
-    query: query || null,
-    limit: typeof limit === 'number' ? limit : null
-  });
-
-  const payload = await apiRequest(url.toString(), {
+export async function fetchVideoFeed({ signal } = {}) {
+  const payload = await apiRequest(API_ROUTES.videoFeed, {
     method: 'GET',
-    token,
     includeAuth: false,
     signal
   });
 
-  console.debug('[videos] Raw videos payload received', {
-    requestUrl: url.toString(),
-    payload
-  });
-
-  const { items, nextCursor, hasMore } = extractCollection(payload);
-  const normalizedItems = [];
-  let rejectedCount = 0;
-
-  items.forEach((item) => {
-    const normalized = normalizeVideo(item);
-    if (normalized) {
-      normalizedItems.push(normalized);
-    } else {
-      rejectedCount += 1;
-    }
-  });
-
-  if (rejectedCount > 0) {
-    console.warn(`Rejected ${rejectedCount} invalid video item(s) from GET /videos.`);
-  }
-
-  if (items.length > 0 && normalizedItems.length === 0) {
-    throw new ApiError('Malformed video response: every video item was rejected by validation.', {
+  if (!Array.isArray(payload)) {
+    throw new ApiError('Malformed feed response: expected an array of ids.', {
       code: 'MALFORMED_DATA',
       kind: 'validation',
       details: payload
     });
   }
 
-  console.debug('[videos] Normalized videos result', {
-    requestUrl: url.toString(),
-    receivedCount: items.length,
-    acceptedCount: normalizedItems.length,
-    rejectedCount,
-    nextCursor,
-    limit: typeof payload?.limit === 'number' ? payload.limit : null,
-    hasMore
+  return payload
+    .filter((value) => typeof value === 'string' && value.trim())
+    .map((value) => value.trim());
+}
+
+export async function fetchVideoMetadata(videoId, { signal } = {}) {
+  if (!videoId) {
+    throw new ApiError('Video id is required.', {
+      code: 'VALIDATION_ERROR',
+      kind: 'validation'
+    });
+  }
+
+  const payload = await apiRequest(API_ROUTES.videoById(videoId), {
+    method: 'GET',
+    includeAuth: false,
+    signal
   });
 
+  const normalized = normalizeVideoMetadata(payload, videoId);
+  if (!normalized) {
+    throw new ApiError('Malformed video metadata response.', {
+      code: 'MALFORMED_DATA',
+      kind: 'validation',
+      details: payload
+    });
+  }
+
+  return normalized;
+}
+
+export async function fetchVideoPlaylist(videoId, { signal } = {}) {
+  if (!videoId) {
+    throw new ApiError('Video id is required.', {
+      code: 'VALIDATION_ERROR',
+      kind: 'validation'
+    });
+  }
+
+  const playlist = await apiRequest(API_ROUTES.videoPlayById(videoId), {
+    method: 'GET',
+    includeAuth: false,
+    signal
+  });
+
+  if (typeof playlist !== 'string' || !playlist.trim()) {
+    throw new ApiError('Malformed playlist response.', {
+      code: 'MALFORMED_DATA',
+      kind: 'validation',
+      details: playlist
+    });
+  }
+
+  return playlist;
+}
+
+export async function initiateVideoUpload({
+  title,
+  description,
+  clientId,
+  token,
+  signal
+}) {
+  const cleanTitle = typeof title === 'string' ? title.trim() : '';
+  const cleanDescription = typeof description === 'string' ? description.trim() : '';
+
+  if (!cleanTitle) {
+    throw new ApiError('Title is required.', {
+      code: 'VALIDATION_ERROR',
+      kind: 'validation'
+    });
+  }
+
+  if (!clientId) {
+    throw new ApiError('Client id is required for uploads.', {
+      code: 'VALIDATION_ERROR',
+      kind: 'validation'
+    });
+  }
+
+  const payload = await apiRequest(API_ROUTES.videoInitiateUpload, {
+    method: 'POST',
+    token,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Client-ID': clientId
+    },
+    body: JSON.stringify({
+      title: cleanTitle,
+      description: cleanDescription
+    }),
+    signal
+  });
+
+  const videoId = typeof payload?.videoId === 'string' ? payload.videoId : '';
+  const url = typeof payload?.url === 'string' ? payload.url : '';
+
+  if (!videoId || !url) {
+    throw new ApiError('Malformed initiate-upload response.', {
+      code: 'MALFORMED_DATA',
+      kind: 'validation',
+      details: payload
+    });
+  }
+
   return {
-    items: normalizedItems,
-    nextCursor,
-    limit: typeof payload?.limit === 'number' ? payload.limit : null,
-    hasMore
+    videoId,
+    uploadUrl: url,
+    status: typeof payload?.status === 'string' ? payload.status : ''
   };
 }
 
-export async function uploadVideo(token, { file, title, description }) {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('title', title);
-  formData.append('description', description);
+function shouldFallbackToGateway(error) {
+  // CORS failures surface as network errors in the browser (TypeError -> ApiError NETWORK_ERROR).
+  return error?.code === 'NETWORK_ERROR' || error?.kind === 'network';
+}
 
-  console.debug('[videos] Uploading video', {
-    endpoint: API_ROUTES.videoUpload,
-    title,
-    descriptionLength: description.length,
-    fileName: file?.name || null,
-    fileType: file?.type || null,
-    fileSize: file?.size || null
-  });
+export async function completeVideoUpload({ videoId, signal } = {}) {
+  if (!videoId) {
+    throw new ApiError('Video id is required.', {
+      code: 'VALIDATION_ERROR',
+      kind: 'validation'
+    });
+  }
 
-  return apiRequest(API_ROUTES.videoUpload, {
+  const body = JSON.stringify({ videoId });
+  const directRequest = {
     method: 'POST',
-    token,
-    body: formData
+    includeAuth: false,
+    headers: { 'Content-Type': 'application/json' },
+    body,
+    signal
+  };
+
+  try {
+    return await apiRequest(API_ROUTES.videoCompleteUploadDirect, directRequest);
+  } catch (error) {
+    if (!shouldFallbackToGateway(error)) {
+      throw error;
+    }
+  }
+
+  // Gateway endpoint is protected (requires JWT). Use the session token implicitly.
+  return apiRequest(API_ROUTES.videoCompleteUploadGateway, {
+    method: 'POST',
+    includeAuth: true,
+    headers: { 'Content-Type': 'application/json' },
+    body,
+    signal
   });
 }

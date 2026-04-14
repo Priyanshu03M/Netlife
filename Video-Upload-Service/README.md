@@ -1,226 +1,236 @@
 # Video Upload Service
 
-Spring Boot service for uploading video files to MinIO and storing upload metadata in PostgreSQL.
+Spring Boot service that provides a two-step upload workflow:
 
-## What It Does
+1. Create an upload: persist video metadata and return a **pre-signed MinIO PUT URL**.
+2. Complete an upload: verify the object exists in MinIO, mark the video as uploaded, and publish a Kafka event for downstream processing.
 
-- Accepts multipart video uploads over HTTP.
-- Validates that the uploaded file is present and has a `video/*` content type.
-- Stores the file in a MinIO bucket.
-- Persists upload metadata in the `videos` table.
-- Returns a JSON response with upload details.
+## What It Does (In Practice)
+
+- Returns a pre-signed URL so clients upload video bytes directly to object storage (MinIO), not through this service.
+- Stores and updates upload state in Postgres (`UPLOADING` -> `UPLOADED` or `FAILED`).
+- Emits a Kafka event when an upload is confirmed, enabling an async video-processing pipeline.
+
+## How It Does It (Code Flow)
+
+### 1) Initiate Upload (`POST /videos/initiate-upload`)
+
+Implemented in `UploadController` -> `UploadService.uploadVideoMetadata(...)`.
+
+1. Validates input (`UploadService.validateUpload`).
+2. Generates a `videoId` (UUID) for the DB record.
+3. Builds an object key (currently `raw/<id>/original.mp4` via `UploadService.buildObjectKey(...)`).
+4. Generates a pre-signed **PUT** URL using MinIO SDK (`MinioClient.getPresignedObjectUrl`) with 1-day expiry.
+5. Persists a `VideoMetadata` row with:
+   - `status=UPLOADING`
+   - `objectKey=<raw/.../original.mp4>`
+   - timestamps
+6. Returns `UploadResponseDto { status, url, videoId }`.
+
+Notes:
+
+- Auth is not wired yet: controller currently generates a random `userId` for testing.
+
+### 2) Client Uploads Bytes to MinIO
+
+The client uses the returned pre-signed URL to `PUT` the file directly into the configured bucket. This service does not stream or proxy the upload.
+
+### 3) Complete Upload (`POST /videos/complete-upload`)
+
+Implemented in `UploadController` -> `UploadService.completeUpload(...)`.
+
+1. Loads the `VideoMetadata` row by `videoId`.
+2. If already `UPLOADED`, returns immediately.
+3. Calls `minioClient.statObject(...)` on `bucket + objectKey` to verify the uploaded object exists.
+4. On success:
+   - updates status to `UPLOADED`
+   - persists the change
+   - publishes `CompleteVideoRequestDto { videoId }` to Kafka via `KafkaTemplate`
+5. On failure:
+   - updates status to `FAILED`
+   - persists the change
+   - throws `StorageException`
+
+### Error Handling
+
+`GlobalExceptionHandler` maps:
+
+- `BadRequestException` -> HTTP 400 with `ErrorResponseDto`
+- `StorageException` -> HTTP 500 with `ErrorResponseDto`
 
 ## Tech Stack
 
+- Java 17, Spring Boot 4.x (WebMVC, Security)
+- Spring Data JPA (PostgreSQL)
+- MinIO (S3-compatible object storage)
+- Kafka (event publication)
+
+## Quickstart (Local)
+
+### Prerequisites
+
 - Java 17
-- Spring Boot 4
-- Spring Web MVC
-- Spring Data JPA
-- PostgreSQL
-- MinIO
-- Maven
-- Docker
-- Eureka Client dependency included
+- Docker + Docker Compose
 
-## Project Structure
+### Start Dependencies (Kafka + MinIO)
 
-```text
-src/main/java/com/spring/videouploadservice
-|-- config
-|   `-- MinioConfig.java
-|-- controller
-|   `-- UploadController.java
-|-- dto
-|   |-- UploadResponseDto.java
-|   `-- UploadVideoDto.java
-|-- entity
-|   `-- VideoMetadata.java
-|-- repository
-|   `-- VideoMetadataRepository.java
-`-- service
-    `-- UploadService.java
+```bash
+docker compose up -d
 ```
+
+This repo's `docker-compose.yml` exposes:
+
+- Kafka (host): `localhost:29092`
+- MinIO S3 API: `http://localhost:9000`
+- MinIO Console: `http://localhost:9001` (default credentials below)
+
+MinIO defaults from `docker-compose.yml`:
+
+- `MINIO_ROOT_USER=minioadmin`
+- `MINIO_ROOT_PASSWORD=minioadmin123`
+
+### Start Postgres
+
+`docker-compose.yml` does not include Postgres. Run it locally via Docker:
+
+```bash
+docker run --rm -d \
+  --name video-upload-postgres \
+  -p 5432:5432 \
+  -e POSTGRES_DB=netlife \
+  -e POSTGRES_USER=alice \
+  -e POSTGRES_PASSWORD=OmagaZ \
+  postgres:16
+```
+
+### Create the MinIO Bucket
+
+The service expects bucket name `videos` (see `minio.bucket` in `application.properties`).
+
+Create it via the MinIO Console:
+
+1. Open `http://localhost:9001`
+2. Login with `minioadmin` / `minioadmin123`
+3. Create bucket named `videos`
+
+### Run the Service
+
+```bash
+./mvnw spring-boot:run
+```
+
+By default the service runs on `http://localhost:8081`.
 
 ## Configuration
 
-Application settings are defined in [`src/main/resources/application.properties`](/E:/Netlife/Video-Upload-Service/src/main/resources/application.properties).
+Defaults are defined in `src/main/resources/application.properties`. Common overrides:
 
-### Required Environment Variables
+- `DB_URL` (default `jdbc:postgresql://localhost:5432/netlife`)
+- `DB_USERNAME` (default `alice`)
+- `DB_PASSWORD` (default `OmagaZ`)
+- `KAFKA_BOOTSTRAP_SERVERS` (default `localhost:29092`)
+- `EUREKA_SERVER_URL` (default `http://localhost:8761/eureka`)
+- `minio.url` (default `http://localhost:9000`)
+- `minio.accessKey` (default `minioadmin`)
+- `minio.secretKey` (default `minioadmin123`)
+- `minio.bucket` (default `videos`)
+- `app.kafka.topic.video-uploaded` (default `video-processing-topic`)
 
-Set these before starting the service:
+Example:
 
-```properties
-DB_URL=jdbc:postgresql://localhost:5432/video_upload
-DB_USERNAME=postgres
-DB_PASSWORD=postgres
-EUREKA_SERVER_URL=http://localhost:8761/eureka
+```bash
+export DB_URL="jdbc:postgresql://localhost:5432/netlife"
+export DB_USERNAME="alice"
+export DB_PASSWORD="OmagaZ"
+export KAFKA_BOOTSTRAP_SERVERS="localhost:29092"
+./mvnw spring-boot:run
 ```
-
-### Built-in Defaults
-
-These values are currently hardcoded in `application.properties`:
-
-```properties
-server.port=8081
-spring.servlet.multipart.max-file-size=500MB
-spring.servlet.multipart.max-request-size=500MB
-
-minio.url=http://localhost:9000
-minio.accessKey=minioadmin
-minio.secretKey=minioadmin123
-minio.bucket=videos
-```
-
-### Important Notes
-
-- Flyway is present but currently disabled: `spring.flyway.enabled=false`
-- Eureka client registration and registry fetch are both disabled
-- The service expects PostgreSQL and MinIO to be available when upload requests are handled
 
 ## API
 
-### Upload Video
+### Initiate Upload
 
-- Method: `POST`
-- Path: `/videos/upload`
-- Content-Type: `multipart/form-data`
-- Required header: `X-User-Id`
+`POST /videos/initiate-upload`
 
-### Form Fields
-
-- `file`: video file
-- `title`: video title
-- `description`: video description
-
-### Example cURL
-
-```bash
-curl -X POST "http://localhost:8081/videos/upload" \
-  -H "X-User-Id: 11111111-1111-1111-1111-111111111111" \
-  -F "file=@sample.mp4" \
-  -F "title=Demo Video" \
-  -F "description=Upload test"
-```
-
-### Success Response
-
-Status: `201 Created`
+Request:
 
 ```json
 {
-  "status": "UPLOADED",
-  "bucket": "videos",
-  "objectKey": "11111111-1111-1111-1111-111111111111/550e8400-e29b-41d4-a716-446655440000/sample.mp4",
-  "title": "Demo Video",
-  "description": "Upload test",
-  "contentType": "video/mp4",
-  "size": 1234567,
-  "userId": "11111111-1111-1111-1111-111111111111"
+  "title": "My Video",
+  "description": "Optional description"
 }
 ```
 
-### Error Responses
+Example:
 
-- `400 Bad Request`: empty file or unsupported content type
-- `500 Internal Server Error`: upload or storage failure
-
-## Upload Flow
-
-1. Controller receives multipart request and `X-User-Id` header.
-2. Service validates file presence and MIME type.
-3. Service creates a unique object key in the format:
-
-```text
-<userId>/<random-uuid>/<sanitized-original-file-name>
+```bash
+curl -sS -X POST "http://localhost:8081/videos/initiate-upload" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"My Video","description":"Optional description"}'
 ```
 
-4. Service ensures the MinIO bucket exists.
-5. Service uploads the video to MinIO.
-6. Service stores metadata in PostgreSQL.
-7. Service returns upload details to the client.
+Response (example):
 
-## Database
-
-The service maps video metadata to the `videos` table through [`src/main/java/com/spring/videouploadservice/entity/VideoMetadata.java`](/E:/Netlife/Video-Upload-Service/src/main/java/com/spring/videouploadservice/entity/VideoMetadata.java).
-
-Migration script:
-- [`src/main/resources/db/migration/V2__video_table.sql`](/E:/Netlife/Video-Upload-Service/src/main/resources/db/migration/V2__video_table.sql)
-
-Stored fields include:
-
-- `id`
-- `user_id`
-- `title`
-- `description`
-- `bucket_url`
-- `object_key`
-- `duration`
-- `size`
-- `format`
-- `status`
-- `created_at`
-
-## Running Locally
-
-### 1. Start PostgreSQL and MinIO
-
-Make sure both services are running and reachable using the configured values.
-
-### 2. Export Environment Variables
-
-PowerShell:
-
-```powershell
-$env:DB_URL="jdbc:postgresql://localhost:5432/video_upload"
-$env:DB_USERNAME="postgres"
-$env:DB_PASSWORD="postgres"
-$env:EUREKA_SERVER_URL="http://localhost:8761/eureka"
+```json
+{
+  "status": "UPLOADING",
+  "url": "http://localhost:9000/videos/raw/<id>/original.mp4?X-Amz-Algorithm=...",
+  "videoId": "<uuid>"
+}
 ```
 
-### 3. Start the Service
+### Upload File to MinIO (Using the Pre-Signed URL)
 
-Using Maven Wrapper:
+Use the `url` returned by `initiate-upload`:
 
-```powershell
-.\mvnw.cmd spring-boot:run
+```bash
+curl -sS -X PUT --upload-file ./original.mp4 "<PRESIGNED_URL>"
 ```
 
-Or build a jar:
+### Complete Upload
 
-```powershell
-.\mvnw.cmd clean package
-java -jar target\VideoUploadService-0.0.1-SNAPSHOT.jar
+`POST /videos/complete-upload`
+
+Request:
+
+```json
+{
+  "videoId": "<uuid>"
+}
 ```
 
-## Docker
+Example:
 
-Build image:
-
-```powershell
-docker build -t video-upload-service .
+```bash
+curl -sS -X POST "http://localhost:8081/videos/complete-upload" \
+  -H "Content-Type: application/json" \
+  -d '{"videoId":"<uuid>"}'
 ```
 
-Run container:
+Response body is a string: `UPLOADED` (or an error response on failure).
 
-```powershell
-docker run -p 8081:8081 `
-  -e DB_URL="jdbc:postgresql://host.docker.internal:5432/video_upload" `
-  -e DB_USERNAME="postgres" `
-  -e DB_PASSWORD="postgres" `
-  -e EUREKA_SERVER_URL="http://host.docker.internal:8761/eureka" `
-  video-upload-service
+### Error Response Format
+
+On handled errors (e.g., bad request), the API returns:
+
+```json
+{
+  "timestamp": "2026-04-14T12:34:56.789",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Title is required",
+  "path": "/videos/initiate-upload"
+}
 ```
 
-## Current Gaps
+## Current Limitations
 
-- No authentication or authorization beyond the `X-User-Id` header.
-- Flyway migrations will not run unless Flyway is enabled.
-- There is only a minimal default test class in the repository.
-- The database migration defines UUID columns, while the entity currently stores `String` values. That should be reviewed before production use.
+- Authentication/authorization is not implemented yet (`SecurityConfig` permits all requests). `UploadController` currently assigns a random `userId` for testing.
+- DB schema is created on startup (`spring.jpa.hibernate.ddl-auto=create`). Flyway is configured but disabled by default (`spring.flyway.enabled=false`).
+- Upload is single-object PUT (not multipart). The service generates pre-signed **PUT** URLs only.
 
-## Useful Files
+## Tests
 
-- [`pom.xml`](/E:/Netlife/Video-Upload-Service/pom.xml)
-- [`Dockerfile`](/E:/Netlife/Video-Upload-Service/Dockerfile)
-- [`src/main/java/com/spring/videouploadservice/controller/UploadController.java`](/E:/Netlife/Video-Upload-Service/src/main/java/com/spring/videouploadservice/controller/UploadController.java)
-- [`src/main/java/com/spring/videouploadservice/service/UploadService.java`](/E:/Netlife/Video-Upload-Service/src/main/java/com/spring/videouploadservice/service/UploadService.java)
+```bash
+./mvnw test
+```

@@ -28,9 +28,6 @@ public class UserDetailConfig implements UserDetailsService {
                 .findByUsernameOrEmail(usernameOrEmail,  usernameOrEmail)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        List<GrantedAuthority> grantedAuthorities =
-                List.of(new SimpleGrantedAuthority(person.getRole()));
-
         return new CustomUserDetails(person);
     }
 }

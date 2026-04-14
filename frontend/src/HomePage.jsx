@@ -1,54 +1,14 @@
 import React, { useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { getAvatarLabel, getSession } from './auth/session';
 import { useVideos } from './hooks/useVideos';
+import { useVideoDetails } from './hooks/useVideoDetails';
 import Navbar from './Navbar.jsx';
 import Sidebar from './Sidebar.jsx';
 import VideoCard from './VideoCard.jsx';
 import UploadModal from './UploadModal.jsx';
-
-const viewsFormatter = new Intl.NumberFormat('en-US', {
-  notation: 'compact',
-  maximumFractionDigits: 1
-});
-
-function formatViews(value) {
-  if (typeof value !== 'number' || Number.isNaN(value)) {
-    return '0 views';
-  }
-
-  return `${viewsFormatter.format(value)} views`;
-}
+import HlsPlayer from './HlsPlayer.jsx';
 
 const skeletonItems = Array.from({ length: 6 }, (_, index) => index);
-
-function formatTimeAgo(dateString) {
-  if (!dateString) {
-    return 'Recently';
-  }
-
-  const createdAt = new Date(dateString);
-  if (Number.isNaN(createdAt.getTime())) {
-    return 'Recently';
-  }
-
-  const seconds = Math.max(1, Math.floor((Date.now() - createdAt.getTime()) / 1000));
-  const units = [
-    { label: 'year', value: 60 * 60 * 24 * 365 },
-    { label: 'month', value: 60 * 60 * 24 * 30 },
-    { label: 'week', value: 60 * 60 * 24 * 7 },
-    { label: 'day', value: 60 * 60 * 24 },
-    { label: 'hour', value: 60 * 60 },
-    { label: 'minute', value: 60 }
-  ];
-
-  const matchedUnit = units.find((unit) => seconds >= unit.value);
-  if (!matchedUnit) {
-    return 'Just now';
-  }
-
-  const amount = Math.floor(seconds / matchedUnit.value);
-  return `${amount} ${matchedUnit.label}${amount === 1 ? '' : 's'} ago`;
-}
 
 function getVideoErrorContent(error) {
   if (!error) {
@@ -93,14 +53,10 @@ function HomePage({
   const {
     videos,
     loading,
-    loadingMore,
     error,
-    hasMore,
-    reload,
-    loadMore
+    reload
   } = useVideos({
     query: deferredSearchTerm,
-    limit: 10
   });
   const session = getSession();
   const videoErrorContent = getVideoErrorContent(error);
@@ -120,9 +76,12 @@ function HomePage({
   const selectedVideoId = useMemo(() => (
     pathname.startsWith('/watch/') ? pathname.replace('/watch/', '') : ''
   ), [pathname]);
-  const selectedVideo = useMemo(() => (
-    selectedVideoId ? videos.find((video) => video.id === selectedVideoId) : null
-  ), [selectedVideoId, videos]);
+  const {
+    metadata: selectedVideo,
+    playlistUrl,
+    loading: selectedLoading,
+    error: selectedError
+  } = useVideoDetails(selectedVideoId);
   const isAuthRoute = pathname === '/login' || pathname === '/register';
   const authTitle = pathname === '/register' ? 'Create your workspace access' : 'Welcome back';
   const authSubtitle = pathname === '/register'
@@ -134,8 +93,6 @@ function HomePage({
       <VideoCard
         key={video.id}
         video={video}
-        viewLabel={formatViews(video.views)}
-        timeAgoLabel={formatTimeAgo(video.createdAt)}
         onOpen={handleOpenVideo}
       />
     ))
@@ -168,27 +125,24 @@ function HomePage({
                 Back to home
               </button>
               <div className="watch-card">
-                {selectedVideo?.videoUrl ? (
-                  <div className="watch-player-shell">
-                    <video
-                      className="watch-player"
-                      src={selectedVideo.videoUrl}
-                      controls
-                      preload="metadata"
-                    />
-                  </div>
-                ) : (
+                {selectedLoading ? (
+                  <div className="watch-player-placeholder">Loading video...</div>
+                ) : selectedError ? (
                   <div className="watch-player-placeholder">
-                    Select a video from the feed to preview playback.
+                    Failed to load playback: {selectedError.message || 'Unknown error'}
                   </div>
+                ) : playlistUrl ? (
+                  <HlsPlayer src={playlistUrl} />
+                ) : (
+                  <div className="watch-player-placeholder">No playback source available.</div>
                 )}
                 <h1 className="watch-title">
                   {selectedVideo?.title || 'Video details will appear here'}
                 </h1>
                 <p className="watch-meta">
                   {selectedVideo
-                    ? `${selectedVideo.channelName} - ${formatViews(selectedVideo.views)} - ${formatTimeAgo(selectedVideo.createdAt)}`
-                    : 'Open a video from the homepage grid to test navigation.'}
+                    ? `${selectedVideo.views} view${selectedVideo.views === 1 ? '' : 's'}`
+                    : 'Open a video from the homepage grid to preview playback.'}
                 </p>
                 {selectedVideo?.description ? (
                   <p className="watch-description">{selectedVideo.description}</p>
@@ -307,20 +261,6 @@ function HomePage({
               ) : (
                 <>
                   <section className="video-grid">{videoCards}</section>
-                  {hasMore ? (
-                    <div className="feed-actions">
-                      <button
-                        type="button"
-                        className="primary-button"
-                        onClick={() => {
-                          loadMore();
-                        }}
-                        disabled={loadingMore}
-                      >
-                        {loadingMore ? 'Loading more...' : 'Load more'}
-                      </button>
-                    </div>
-                  ) : null}
                 </>
               )}
             </>

@@ -14,23 +14,22 @@ import static org.springframework.cloud.gateway.server.mvc.handler.HandlerFuncti
 public class GatewayRoutesConfig {
 
     @Bean
-    RouterFunction<ServerResponse> gatewayRoutes(GatewayRequestUserIdFilter gatewayRequestUserIdFilter) {
+    RouterFunction<ServerResponse> gatewayRoutes() {
         return route("auth-service")
                 .route(RequestPredicates.path("/auth/**"), http())
                 .filter(lb("AUTHSERVICE"))
                 .build()
                 .and(
                         route("video-upload-service")
-                                .route(RequestPredicates.path("/videos")
-                                        .or(RequestPredicates.path("/videos/**")), http())
+                                .route(RequestPredicates.POST("/videos/initiate-upload"), http())
+                                .route(RequestPredicates.POST("/videos/complete-upload"), http())
                                 .filter(lb("VIDEOUPLOADSERVICE"))
-                                .before(gatewayRequestUserIdFilter.addAuthenticatedUserIdHeader())
                                 .build()
                 )
                 .and(
-                        route("message-service")
-                                .route(RequestPredicates.path("/message/**"), http())
-                                .filter(lb("MESSAGESERVICE"))
+                        route("video-delivery-service")
+                                .route(RequestPredicates.GET("/videos/**"), http())
+                                .filter(lb("VIDEODELIVERYSERVICE"))
                                 .build()
                 );
     }
