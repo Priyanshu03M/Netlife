@@ -68,7 +68,7 @@ Notes:
 - MinIO
 - Postgres (must already contain the `videos` row)
 
-This repo’s `docker-compose.yml` provides Kafka + MinIO (no Postgres).
+`Video-Processing-Service/docker-compose.yml` provides Kafka + MinIO (no Postgres).
 
 ## Key Configuration
 

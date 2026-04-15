@@ -62,11 +62,23 @@ public class ProcessingService {
                 System.out.println("Saved at: " + inputFile.toString());
                 outputDir = inputFile.getParent();
 
+                double duration = tempFileManager.getVideoDuration(inputFile);
+                Path thumbnailPath = null;
+                String thumbnailKey = null;
+                try {
+                    thumbnailPath = tempFileManager.generateThumbnail(inputFile, video.getId(), duration);
+                    thumbnailKey = tempFileManager.uploadThumbnail(thumbnailPath, video.getId());
+                } catch (Exception e) {
+                    log.error("Thumbnail failed for {}", video.getId(), e);
+                }
+
                 tempFileManager.generateHls(inputFile, outputDir);
 
                 String processedPath = tempFileManager.uploadHlsFolder(outputDir, video.getId());
 
                 video.setProcessedPath(processedPath);
+                video.setThumbnailPath(thumbnailKey);
+                video.setDuration((int) duration);
                 video.setStatus(STATUS_READY);
                 video.setUpdatedAt(LocalDateTime.now());
                 videoMetadataRepository.save(video);

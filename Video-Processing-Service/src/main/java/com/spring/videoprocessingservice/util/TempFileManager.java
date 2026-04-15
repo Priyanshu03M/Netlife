@@ -112,6 +112,110 @@ public class TempFileManager {
         return processedPath.get();
     }
 
+    public Path generateThumbnail(Path inputFile, String videoId, double durationSeconds) {
+        try {
+            Path thumbnailDir = inputFile.getParent().resolve("thumbnail");
+            Files.createDirectories(thumbnailDir);
+
+            Path thumbnailPath = thumbnailDir.resolve("cover.jpg");
+
+            Process process = getProcess(inputFile, durationSeconds, thumbnailPath);
+
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream()))) {
+
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    log.info("[THUMBNAIL] {}", line);
+                }
+            }
+
+            int exitCode = process.waitFor();
+
+            if (exitCode != 0) {
+                throw new RuntimeException("Thumbnail generation failed: " + exitCode);
+            }
+
+            return thumbnailPath;
+
+        } catch (IOException | InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Thumbnail generation error", e);
+        }
+    }
+
+    private static Process getProcess(Path inputFile, double durationSeconds, Path thumbnailPath) throws IOException {
+        double captureTime = Math.max(1, Math.min(5, durationSeconds * 0.25));
+
+        ProcessBuilder processBuilder = new ProcessBuilder(
+                "ffmpeg",
+                "-y",
+                "-ss", String.valueOf(captureTime),
+                "-i", inputFile.toAbsolutePath().toString(),
+                "-frames:v", "1",
+                "-vf", "scale=640:-1",
+                "-q:v", "2",
+                thumbnailPath.toAbsolutePath().toString()
+        );
+
+        processBuilder.redirectErrorStream(true);
+        Process process = processBuilder.start();
+        return process;
+    }
+
+    public String uploadThumbnail(Path thumbnailPath, String videoId) {
+        String objectKey = "thumbnails/" + videoId + "/cover.jpg";
+
+        try (InputStream inputStream = Files.newInputStream(thumbnailPath)) {
+
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectKey)
+                            .stream(inputStream, Files.size(thumbnailPath), -1)
+                            .contentType("image/jpeg")
+                            .build()
+            );
+
+            log.info("Uploaded thumbnail: {}", objectKey);
+            return objectKey;
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to upload thumbnail", e);
+        }
+    }
+
+    public double getVideoDuration(Path inputFile) {
+        try {
+            ProcessBuilder pb = new ProcessBuilder(
+                    "ffprobe",
+                    "-v", "error",
+                    "-show_entries", "format=duration",
+                    "-of", "default=noprint_wrappers=1:nokey=1",
+                    inputFile.toAbsolutePath().toString()
+            );
+
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+
+            BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream())
+            );
+
+            String output = reader.readLine();
+            int exitCode = process.waitFor();
+
+            if (exitCode != 0 || output == null) {
+                throw new RuntimeException("Failed to get duration");
+            }
+
+            return Double.parseDouble(output.trim());
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error getting video duration", e);
+        }
+    }
+
     public void cleanTempFolder(Path tempDir, String videoId) {
         if (!tempDir.toString().contains("video-" + videoId + "-")) {
             throw new RuntimeException("Unsafe delete prevented");
