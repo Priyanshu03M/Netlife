@@ -39,7 +39,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getServletPath();
         return PUBLIC_URLS.contains(path)
                 || (HttpMethod.GET.matches(request.getMethod())
-                && path.startsWith("/videos/"));
+                && (path.startsWith("/videos/") || (path.startsWith("/users/"))));
     }
 
     @Override

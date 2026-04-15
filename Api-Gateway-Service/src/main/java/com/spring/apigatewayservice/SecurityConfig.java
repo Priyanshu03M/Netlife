@@ -55,6 +55,11 @@ public class SecurityConfig {
                                 "/videos/complete-upload"
                         ).authenticated()
 
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/users/**"
+                        ).permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)

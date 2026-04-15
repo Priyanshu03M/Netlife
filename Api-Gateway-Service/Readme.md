@@ -1,54 +1,58 @@
 # Api-Gateway-Service
 
-API Gateway for Netlife using Spring Cloud Gateway (MVC) and Eureka discovery.
+## What It Does
 
-## Tech Stack
-- Java 17
-- Spring Boot 4.0.2
-- Spring Cloud 2025.1.0
-- Spring Security
-- JJWT (`io.jsonwebtoken`)
+Acts as the single entry point for Netlife. It routes HTTP requests to internal services using Eureka service discovery and enforces JWT-based authentication for protected routes.
 
-## Current Configuration
-- `spring.application.name=ApiGatewayService`
-- `server.port=8765`
-- `eureka.client.service-url.defaultZone=${EUREKA_SERVER_URL}`
-- `jwt.secret=${JWT_SECRET}`
+## How It Works
 
-## Route Configuration
-- Route ID: `auth-service`
-- URI: `lb://AUTHSERVICE`
-- Predicate: `Path=/auth/**`
+### Routing (Spring Cloud Gateway MVC)
 
-## Security Behavior
-Public paths:
-- `/auth/login`
-- `/auth/register`
-- `/auth/pages`
+Routes are defined in [`GatewayRoutesConfig`](src/main/java/com/spring/apigatewayservice/GatewayRoutesConfig.java) and use the MVC router-function style with a load-balancer filter:
 
-Protected:
-- Any other path requires a valid bearer token.
+- Auth:
+  - Matches: `Path=/auth/**`
+  - Target: `lb://AUTHSERVICE`
+- Video upload:
+  - Matches: `POST /videos/initiate-upload`, `POST /videos/complete-upload`
+  - Target: `lb://VIDEOUPLOADSERVICE`
+- Video delivery:
+  - Matches: `GET /videos/**`
+  - Target: `lb://VIDEODELIVERYSERVICE`
+
+`lb://...` targets are resolved from the Eureka registry.
+
+### AuthZ/AuthN (Spring Security + JWT)
+
+Security is configured in [`SecurityConfig`](src/main/java/com/spring/apigatewayservice/SecurityConfig.java) and the JWT is validated in [`JwtAuthenticationFilter`](src/main/java/com/spring/apigatewayservice/JwtAuthenticationFilter.java):
+
+- Public:
+  - `POST /auth/login`, `POST /auth/register`, `POST /auth/refresh`, `POST /auth/logout`
+  - `GET /videos/**`
+- Protected (JWT required):
+  - `POST /videos/initiate-upload`
+  - `POST /videos/complete-upload`
+  - Anything else by default
+
+When a bearer token is present, the filter validates it and puts an authentication object in the `SecurityContext` with:
+
+- Principal: `userId` (from JWT claim `userId`)
+- Authorities: `roles` (from JWT claim `roles`)
 
 Header format:
-- `Authorization: Bearer <jwt>`
 
-## Required Environment Variables
-- `EUREKA_SERVER_URL`
-  - Example: `http://localhost:8761/eureka`
-- `JWT_SECRET`
+`Authorization: Bearer <jwt>`
+
+## Configuration
+
+- `server.port=8765`
+- `eureka.client.service-url.defaultZone=${EUREKA_SERVER_URL:http://localhost:8761/eureka}`
+- `jwt.secret=${JWT_SECRET:...}`
 
 ## Run Locally
-From `Api-Gateway-Service`:
 
 ```bash
 ./mvnw spring-boot:run
 ```
 
-On PowerShell:
-
-```powershell
-.\mvnw.cmd spring-boot:run
-```
-
-## Local URL
-- `http://localhost:8765`
+Local URL: `http://localhost:8765`

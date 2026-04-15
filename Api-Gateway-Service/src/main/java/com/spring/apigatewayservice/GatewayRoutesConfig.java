@@ -31,6 +31,12 @@ public class GatewayRoutesConfig {
                                 .route(RequestPredicates.GET("/videos/**"), http())
                                 .filter(lb("VIDEODELIVERYSERVICE"))
                                 .build()
+                )
+                .and(
+                        route("user-service")
+                                .route(RequestPredicates.GET("/users/**"), http())
+                                .filter(lb("USERSERVICE"))
+                                .build()
                 );
     }
 }
