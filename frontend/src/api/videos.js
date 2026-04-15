@@ -12,6 +12,8 @@ export function normalizeVideoMetadata(payload, fallbackId = '') {
   const views = typeof payload.views === 'number' ? payload.views : 0;
   const size = typeof payload.size === 'number' ? payload.size : null;
   const duration = typeof payload.duration === 'number' ? payload.duration : null;
+  const thumbnailUrl = typeof payload.thumbnailUrl === 'string' ? payload.thumbnailUrl : '';
+  const channelName = typeof payload.channelName === 'string' ? payload.channelName : '';
 
   if (!id) {
     return null;
@@ -23,8 +25,35 @@ export function normalizeVideoMetadata(payload, fallbackId = '') {
     description,
     views,
     size,
-    duration
+    duration,
+    thumbnailUrl: thumbnailUrl.trim() || null,
+    channelName: channelName.trim() || ''
   };
+}
+
+function normalizeVideoFeedItem(value) {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+    // Minimal item, will be hydrated via /videos/{id}.
+    return {
+      id: trimmed
+    };
+  }
+
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const id = typeof value.id === 'string' ? value.id : '';
+  if (!id.trim()) {
+    return null;
+  }
+
+  // Feed can optionally include thumbnailUrl/channelName (and may include full metadata).
+  return normalizeVideoMetadata(value, id.trim()) || { id: id.trim() };
 }
 
 export async function fetchVideoFeed({ signal } = {}) {
@@ -35,16 +64,37 @@ export async function fetchVideoFeed({ signal } = {}) {
   });
 
   if (!Array.isArray(payload)) {
-    throw new ApiError('Malformed feed response: expected an array of ids.', {
+    throw new ApiError('Malformed feed response: expected an array.', {
       code: 'MALFORMED_DATA',
       kind: 'validation',
       details: payload
     });
   }
 
-  return payload
-    .filter((value) => typeof value === 'string' && value.trim())
-    .map((value) => value.trim());
+  const items = payload
+    .map(normalizeVideoFeedItem)
+    .filter(Boolean);
+
+  if (items.length === 0 && payload.length > 0) {
+    throw new ApiError('Malformed feed response: no usable items found.', {
+      code: 'MALFORMED_DATA',
+      kind: 'validation',
+      details: payload
+    });
+  }
+
+  const hasAnyMetadataFields = items.some((item) => (
+    typeof item.title === 'string'
+    || typeof item.thumbnailUrl === 'string'
+    || typeof item.channelName === 'string'
+    || typeof item.views === 'number'
+  ));
+
+  if (hasAnyMetadataFields) {
+    return { kind: 'items', items };
+  }
+
+  return { kind: 'ids', ids: items.map((item) => item.id) };
 }
 
 export async function fetchVideoMetadata(videoId, { signal } = {}) {
@@ -101,12 +151,13 @@ export async function fetchVideoPlaylist(videoId, { signal } = {}) {
 export async function initiateVideoUpload({
   title,
   description,
-  clientId,
+  username,
   token,
   signal
 }) {
   const cleanTitle = typeof title === 'string' ? title.trim() : '';
   const cleanDescription = typeof description === 'string' ? description.trim() : '';
+  const cleanUsername = typeof username === 'string' ? username.trim() : '';
 
   if (!cleanTitle) {
     throw new ApiError('Title is required.', {
@@ -115,8 +166,8 @@ export async function initiateVideoUpload({
     });
   }
 
-  if (!clientId) {
-    throw new ApiError('Client id is required for uploads.', {
+  if (!cleanUsername) {
+    throw new ApiError('Username is required for uploads.', {
       code: 'VALIDATION_ERROR',
       kind: 'validation'
     });
@@ -126,12 +177,12 @@ export async function initiateVideoUpload({
     method: 'POST',
     token,
     headers: {
-      'Content-Type': 'application/json',
-      'X-Client-ID': clientId
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
       title: cleanTitle,
-      description: cleanDescription
+      description: cleanDescription,
+      username: cleanUsername
     }),
     signal
   });

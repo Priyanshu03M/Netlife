@@ -139,6 +139,9 @@ function HomePage({
                 <h1 className="watch-title">
                   {selectedVideo?.title || 'Video details will appear here'}
                 </h1>
+                {selectedVideo?.channelName ? (
+                  <p className="video-channel">{selectedVideo.channelName}</p>
+                ) : null}
                 <p className="watch-meta">
                   {selectedVideo
                     ? `${selectedVideo.views} view${selectedVideo.views === 1 ? '' : 's'}`

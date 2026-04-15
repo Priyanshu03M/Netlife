@@ -23,6 +23,21 @@ async function fetchMetadataBatch(ids, { signal } = {}) {
   return fulfilled;
 }
 
+function isPlaceholderVideoMetadata(video) {
+  if (!video || typeof video !== 'object') {
+    return true;
+  }
+
+  const id = typeof video.id === 'string' ? video.id : '';
+  const defaultTitle = id ? `Video ${id.slice(0, 8)}` : '';
+
+  return (
+    !id
+    || video.title === defaultTitle
+    || (typeof video.title === 'string' && !video.title.trim())
+  );
+}
+
 export function useVideos({ query = '' } = {}) {
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +52,50 @@ export function useVideos({ query = '' } = {}) {
     setError(null);
 
     try {
-      const ids = await fetchVideoFeed({ signal });
+      const feed = await fetchVideoFeed({ signal });
+
+      if (feed?.kind === 'items') {
+        const baseItems = Array.isArray(feed.items) ? feed.items : [];
+        const hydrateIds = baseItems
+          .filter(isPlaceholderVideoMetadata)
+          .map((item) => item.id)
+          .filter(Boolean);
+
+        if (hydrateIds.length > 0) {
+          const hydrated = await fetchMetadataBatch(hydrateIds, { signal });
+          const hydratedById = new Map(hydrated.map((item) => [item.id, item]));
+
+          if (signal?.aborted || requestId !== activeRequestRef.current) {
+            return;
+          }
+
+          const merged = baseItems.map((item) => {
+            const meta = hydratedById.get(item.id);
+            if (!meta) {
+              return item;
+            }
+
+            return {
+              ...meta,
+              // Prefer fields provided by the feed when present.
+              thumbnailUrl: item.thumbnailUrl || meta.thumbnailUrl || null,
+              channelName: item.channelName || meta.channelName || ''
+            };
+          });
+
+          setVideos(merged);
+          return;
+        }
+
+        if (signal?.aborted || requestId !== activeRequestRef.current) {
+          return;
+        }
+
+        setVideos(baseItems);
+        return;
+      }
+
+      const ids = Array.isArray(feed?.ids) ? feed.ids : [];
       const metadata = await fetchMetadataBatch(ids, { signal });
 
       if (signal?.aborted || requestId !== activeRequestRef.current) {
@@ -78,7 +136,7 @@ export function useVideos({ query = '' } = {}) {
     }
 
     return videos.filter((video) => {
-      const haystack = `${video.title} ${video.description} ${video.id}`.toLowerCase();
+      const haystack = `${video.title} ${video.description} ${video.channelName || ''} ${video.id}`.toLowerCase();
       return haystack.includes(q);
     });
   }, [query, videos]);

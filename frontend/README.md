@@ -1,126 +1,120 @@
 # Netlife Frontend
 
-React + Vite frontend for the Netlife authentication flow. The app provides registration, login, logout, and a simple protected content fetch against a backend running on `http://localhost:8765`.
+## What It Does
+
+Netlife’s frontend is a React + Vite single-page app that provides:
+
+- Account registration, login, and logout
+- A public video feed (IDs + metadata) and HLS playback
+- An authenticated upload flow that uses a pre-signed MinIO URL (client uploads bytes directly to object storage)
+
+The frontend expects the backend API gateway to be reachable at `http://localhost:8765` by default.
+
+## How It Works
+
+### Navigation (No React Router)
+
+The app implements minimal client-side navigation using `history.pushState` in [`src/App.jsx`](src/App.jsx). The UI is rendered based on `window.location.pathname`.
+
+Routes used by the UI:
+
+- `/` feed
+- `/login`
+- `/register`
+- `/watch/<videoId>` playback + metadata
+
+### Session Storage
+
+On login, the frontend stores:
+
+- `accessToken`
+- `refreshToken`
+- `username`
+
+in `localStorage` via [`src/auth/session.js`](src/auth/session.js).
+
+There is no automatic refresh flow wired yet (the refresh endpoint exists in `src/apiRoutes.js`, but `apiRequest` does not retry with refresh).
+
+### API Calls (Gateway + Upload Service)
+
+All API endpoints are defined in [`src/apiRoutes.js`](src/apiRoutes.js):
+
+- Auth (via gateway `:8765`):
+  - `POST /auth/register`
+  - `POST /auth/login`
+  - `POST /auth/refresh`
+  - `POST /auth/logout`
+- Video delivery (via gateway `:8765`, public):
+  - `GET /videos/feed` (returns IDs)
+  - `GET /videos/{id}` (metadata)
+  - `GET /videos/{id}/play` (returns an HLS `index.m3u8` playlist whose `.ts` entries are already signed URLs)
+- Upload (initiate via gateway `:8765`, protected):
+  - `POST /videos/initiate-upload` (requires `Authorization: Bearer <jwt>`)
+
+Upload is a 3-step flow implemented by [`src/UploadModal.jsx`](src/UploadModal.jsx):
+
+1. Initiate upload:
+   - calls `POST /videos/initiate-upload` through the gateway with JWT
+   - sends `X-Client-ID` (derived from the JWT claim `userId` when available)
+   - receives `{ videoId, url }`
+2. Upload bytes:
+   - does a `PUT` directly to the returned pre-signed MinIO URL via `XMLHttpRequest` (progress bar)
+3. Complete upload:
+   - prefers direct call to `Video-Upload-Service` at `http://localhost:8081/videos/complete-upload`
+   - falls back to the gateway `POST /videos/complete-upload` if the direct call fails due to CORS/network issues
+
+### Playback
+
+`/watch/<videoId>` fetches playlist text + metadata and plays HLS using:
+
+- native HLS when the browser supports it
+- otherwise `hls.js` (lazy-loaded) in [`src/HlsPlayer.jsx`](src/HlsPlayer.jsx)
 
 ## Stack
 
 - React 18
 - Vite 6
 - Plain CSS
-- Docker and Docker Compose for local containerized development
+- `hls.js` for HLS playback
+- Docker Compose for local containerized development
 
-## Current Features
+## Configuration
 
-- Register a user with:
-  - `username`
-  - `email`
-  - `password`
-  - `role` (`ROLE_USER` or `ROLE_ADMIN`)
-- Login with `username` and `password`
-- Persist `accessToken` and `refreshToken` in `localStorage`
-- Logout using the stored refresh token
-- Call a protected `pages` endpoint and display the backend response text
-- Toggle between register and login views in a single-page UI
+Backend addresses are currently hard-coded in [`src/apiRoutes.js`](src/apiRoutes.js):
 
-## Project Structure
+- Gateway: `API_BASE_URL = http://localhost:8765`
+- Upload service (direct completion): `VIDEOS_API_BASE_URL = http://localhost:8081`
 
-```text
-frontend/
-|-- src/
-|   |-- App.jsx
-|   |-- HomePage.jsx
-|   |-- LoginForm.jsx
-|   |-- RegisterForm.jsx
-|   |-- apiRoutes.js
-|   |-- main.jsx
-|   `-- styles.css
-|-- Dockerfile
-|-- docker-compose.yml
-|-- index.html
-|-- package.json
-`-- vite.config.mjs
-```
-
-## API Configuration
-
-The frontend currently targets this backend base URL:
-
-```js
-http://localhost:8765
-```
-
-Defined routes in [`src/apiRoutes.js`](/E:/Netlife/frontend/src/apiRoutes.js):
-
-- `POST /auth/register`
-- `POST /auth/login`
-- `POST /auth/logout`
-- `GET /auth/pages`
-
-If the backend runs on a different host or port, update [`src/apiRoutes.js`](/E:/Netlife/frontend/src/apiRoutes.js).
+If your backend runs elsewhere, update these constants.
 
 ## Local Development
 
-### Prerequisites
+Prereqs:
 
 - Node.js 20+ recommended
-- npm
-- A backend service listening on `http://localhost:8765`
+- A running backend (at minimum: `Api-Gateway-Service` on `:8765` and `Video-Delivery-Service` behind it)
+- For uploads/playback end-to-end: MinIO and Kafka as documented in the backend services
 
-### Install dependencies
+Run:
 
 ```bash
 npm install
-```
-
-### Start the dev server
-
-```bash
 npm run dev
 ```
 
-The Vite dev server runs on:
-
-```text
-http://localhost:5173
-```
-
-### Build for production
-
-```bash
-npm run build
-```
-
-### Preview the production build
-
-```bash
-npm run preview
-```
+Dev server: `http://localhost:5173`
 
 ## Docker
 
-### Build and run with Docker Compose
+From `frontend/`:
 
 ```bash
 docker compose up --build
 ```
 
-This starts the frontend on port `5173` and mounts the project directory into the container for live development.
-
-### Container details
-
-- Base image: `node:20-alpine`
-- Exposed port: `5173`
-- Startup command: `npm run dev -- --host 0.0.0.0 --port 5173`
-
-## UI Behavior
-
-- The app opens in register mode by default.
-- Login success stores tokens in `localStorage`.
-- The top navigation switches between auth buttons and a logout button depending on login state.
-- The "Load pages" button calls the protected backend endpoint and shows the response message in the UI.
+This starts the Vite dev server in a container on port `5173` and mounts the project directory for live reload.
 
 ## Notes
 
-- There is no routing library in use; the app is a single-page interface rendered from [`src/App.jsx`](/E:/Netlife/frontend/src/App.jsx).
-- There is no automated test setup in the current frontend.
-- Styling is defined in [`src/styles.css`](/E:/Netlife/frontend/src/styles.css).
+- Styling is defined in [`src/styles.css`](src/styles.css).
+- No automated frontend tests are set up yet.

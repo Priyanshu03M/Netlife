@@ -3,7 +3,6 @@ import { completeVideoUpload, initiateVideoUpload } from './api/videos';
 import { ApiError } from './api/client';
 import { uploadFileToPresignedUrl } from './api/presignedUpload';
 import { getSession } from './auth/session';
-import { decodeJwt } from './auth/jwt';
 
 const initialValues = {
   title: '',
@@ -90,13 +89,12 @@ function UploadModal({ isOpen, onClose, onUploadSuccess }) {
 
     try {
       const session = getSession();
-      const claims = decodeJwt(session.accessToken);
-      const clientId = claims?.userId || session.username || 'guest';
+      const username = session.username || 'guest';
 
       const initiated = await initiateVideoUpload({
         title,
         description,
-        clientId,
+        username,
         token: session.accessToken,
         signal: controller.signal
       });
