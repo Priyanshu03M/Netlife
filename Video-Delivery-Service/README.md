@@ -52,7 +52,7 @@ curl -s http://localhost:8083/videos/feed | jq
 - **Postgres** for `videos` metadata and view counts
 - **MinIO** for HLS artifacts (`index.m3u8` + `.ts` segments)
 - **Kafka** for view events (producer + consumer)
-- **Eureka (optional)**: configured as a client, but registration/fetch is disabled by default in `application.properties`
+- **Eureka**: configured as a client and registers/fetches by default (can be disabled if you want to run it standalone)
 
 ## Configuration
 
@@ -122,4 +122,3 @@ java -jar target/Video-Delivery-Service-0.0.1-SNAPSHOT.jar
 ## Security
 
 `SecurityConfig` permits all requests (stateless, CSRF disabled). If you intend to expose this publicly, add authentication/authorization and tighten CORS.
-

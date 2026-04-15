@@ -12,4 +12,6 @@ public class VideoMetadataResponse {
     private Long views;
     private Long size;
     private Integer duration;
+    private String thumbnailUrl;
+    private String channelName;
 }

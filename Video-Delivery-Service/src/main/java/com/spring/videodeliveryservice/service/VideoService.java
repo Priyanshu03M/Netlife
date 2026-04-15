@@ -11,6 +11,7 @@ import io.minio.http.Method;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.common.protocol.types.Field;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -83,12 +84,37 @@ public class VideoService {
         }
     }
 
+    public String getSignedThumbnailUrl(String objectKey) {
+        try {
+            return minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .bucket(bucketName)
+                            .object(objectKey)
+                            .expiry(SIGNED_URL_EXPIRY_SECONDS) // 1 hour
+                            .build()
+            );
+        } catch (Exception e) {
+            log.error("Failed to generate signed thumbnail url");
+        }
+        return null;
+    }
+
     public VideoMetadataResponse getVideoInfo(String id) {
         VideoMetadata videoMetadata = videoMetadataRepository.findById(id).orElse(null);
         if (videoMetadata == null) {
             log.error("Video id {} not found", id);
             return null;
         }
+
+        String thumbnailUrl = videoMetadata.getThumbnailPath();
+        String signedThumbnailUrl = null;
+        if (thumbnailUrl == null) {
+            log.error("Thumbnail url {} not found", id);
+        } else {
+            signedThumbnailUrl = generateSignedUrl(thumbnailUrl);
+        }
+
 
         return VideoMetadataResponse.builder()
                 .id(id)
@@ -97,6 +123,8 @@ public class VideoService {
                 .views(videoMetadata.getViews())
                 .size(videoMetadata.getSize())
                 .duration(videoMetadata.getDuration())
+                .thumbnailUrl(signedThumbnailUrl)
+                .channelName(videoMetadata.getChannelName())
                 .build();
     }
 

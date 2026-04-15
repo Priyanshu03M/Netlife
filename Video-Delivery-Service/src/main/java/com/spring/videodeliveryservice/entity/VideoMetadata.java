@@ -52,4 +52,10 @@ public class VideoMetadata {
 
     @Column(name = "err_message")
     private String errorMessage;
+
+    @Column(name = "thumbnail_path")
+    private String thumbnailPath;
+
+    @Column(name = "channel_name")
+    private String channelName;
 }
