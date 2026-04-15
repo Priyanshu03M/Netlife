@@ -58,6 +58,7 @@ public class UploadService {
                     .description(uploadVideoRequestDto.getDescription())
                     .processedPath(null)
                     .objectKey(objectKey)
+                    .channelName(uploadVideoRequestDto.getUsername())
                     .views(0L)
                     .duration(null)
                     .size(null)

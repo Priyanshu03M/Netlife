@@ -29,7 +29,7 @@ Implemented in `UploadController` -> `UploadService.uploadVideoMetadata(...)`.
 
 Notes:
 
-- Auth is not wired yet: controller currently generates a random `userId` for testing.
+- The controller uses the `X-Client-ID` header as `userId` (stored in `videos.user_id`). In the shared schema, `videos.user_id` has a foreign key to `person.id`, so in practice this header should be the authenticated user id (today it is still passed explicitly as a header).
 
 ### 2) Client Uploads Bytes to MinIO
 
@@ -78,20 +78,20 @@ Implemented in `UploadController` -> `UploadService.completeUpload(...)`.
 docker compose up -d
 ```
 
-This repo's `docker-compose.yml` exposes:
+`Video-Upload-Service/docker-compose.yml` exposes:
 
 - Kafka (host): `localhost:29092`
 - MinIO S3 API: `http://localhost:9000`
 - MinIO Console: `http://localhost:9001` (default credentials below)
 
-MinIO defaults from `docker-compose.yml`:
+MinIO defaults from `Video-Upload-Service/docker-compose.yml`:
 
 - `MINIO_ROOT_USER=minioadmin`
 - `MINIO_ROOT_PASSWORD=minioadmin123`
 
 ### Start Postgres
 
-`docker-compose.yml` does not include Postgres. Run it locally via Docker:
+`Video-Upload-Service/docker-compose.yml` does not include Postgres. Run it locally via Docker:
 
 ```bash
 docker run --rm -d \
@@ -165,6 +165,7 @@ Example:
 
 ```bash
 curl -sS -X POST "http://localhost:8081/videos/initiate-upload" \
+  -H "X-Client-ID: <person-id>" \
   -H "Content-Type: application/json" \
   -d '{"title":"My Video","description":"Optional description"}'
 ```
@@ -225,8 +226,8 @@ On handled errors (e.g., bad request), the API returns:
 
 ## Current Limitations
 
-- Authentication/authorization is not implemented yet (`SecurityConfig` permits all requests). `UploadController` currently assigns a random `userId` for testing.
-- DB schema is created on startup (`spring.jpa.hibernate.ddl-auto=create`). Flyway is configured but disabled by default (`spring.flyway.enabled=false`).
+- Authentication/authorization is not enforced inside this service (`SecurityConfig` permits all requests). `UploadController` uses `X-Client-ID` as `userId` instead of deriving it from a JWT claim.
+- This service does not create or migrate DB schema (`spring.jpa.hibernate.ddl-auto=none`). Use `shared-db` to apply the Flyway migrations.
 - Upload is single-object PUT (not multipart). The service generates pre-signed **PUT** URLs only.
 
 ## Tests

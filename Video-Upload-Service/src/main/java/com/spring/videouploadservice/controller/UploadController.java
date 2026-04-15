@@ -1,9 +1,7 @@
 package com.spring.videouploadservice.controller;
 
-import com.spring.videouploadservice.dto.CompleteVideoRequestDto;
-import com.spring.videouploadservice.dto.UploadBackendRequest;
-import com.spring.videouploadservice.dto.UploadResponseDto;
-import com.spring.videouploadservice.dto.UploadVideoRequestDto;
+import com.spring.videouploadservice.config.UserClient;
+import com.spring.videouploadservice.dto.*;
 import com.spring.videouploadservice.service.UploadService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,12 +18,13 @@ import java.util.UUID;
 public class UploadController {
 
     private final UploadService uploadService;
+    private final UserClient userApiService;
 
     @PostMapping("/initiate-upload")
-    public ResponseEntity<UploadResponseDto> upload(@RequestBody UploadVideoRequestDto request,
-                                                    @RequestHeader("X-Client-ID")  String clientId) {
-        UploadBackendRequest uploadBackendRequest = UploadBackendRequest.builder().title(request.getTitle()).description(request.getDescription()).userId(clientId).build();
-        log.info("Received upload request: userId={}, title='{}'", clientId, request.getTitle());
+    public ResponseEntity<UploadResponseDto> upload(@RequestBody UploadVideoRequestDto request) {
+        UserInfo userInfo = userApiService.getUserInfo(request.getUsername());
+        UploadBackendRequest uploadBackendRequest = UploadBackendRequest.builder().title(request.getTitle()).description(request.getDescription()).userId(userInfo.getId()).username(request.getUsername()).build();
+        log.info("Received upload request: userId={}, title='{}'", userInfo.getId(), request.getTitle());
         UploadResponseDto response = uploadService.uploadVideoMetadata(uploadBackendRequest);
         log.info("Upload request completed: videoId={}, videoUrl={}, status={}", response.getVideoId(), response.getUrl(), response.getStatus());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
