@@ -17,6 +17,7 @@
     <module>Video-Delivery-Service</module>
     <module>Video-Processing-Service</module>
     <module>Video-Upload-Service</module>
+    <module>User-Service</module>
     <module>shared-db</module>
   </modules>
 </project>
