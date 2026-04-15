@@ -1,6 +1,16 @@
 # Eureka-Service
 
-Service registry for Netlife using Spring Cloud Netflix Eureka server.
+## What It Does
+
+Service registry for Netlife. All other services register here so they can discover each other by logical name instead of hard-coded host:port.
+
+## How It Works
+
+This is a Spring Cloud Netflix Eureka Server. Client services (Gateway/Auth/Video services) are configured with:
+
+- `eureka.client.service-url.defaultZone=${EUREKA_SERVER_URL:http://localhost:8761/eureka}`
+
+The API Gateway uses Eureka resolution for `lb://...` targets (client-side load balancing).
 
 ## Tech Stack
 - Java 17
