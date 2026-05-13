@@ -1,5 +1,6 @@
 package com.spring.userservice.service;
 
+import com.spring.userservice.dto.UserFullInfo;
 import com.spring.userservice.dto.UserInfo;
 import com.spring.userservice.entity.Person;
 import com.spring.userservice.repository.PersonRepository;
@@ -17,7 +18,7 @@ public class UserService {
     private final PersonRepository personRepository;
 
     public UserInfo getUserInfo(String username) {
-        Optional<Person> person = personRepository.findByUsername(username.toLowerCase());
+        Optional<Person> person = personRepository.findByUsernameOrEmail(username,  username);
         UserInfo userInfo = null;
         if (person.isPresent()) {
             Person user = person.get();
@@ -28,5 +29,9 @@ public class UserService {
                     .build();
         }
         return userInfo;
+    }
+
+    public UserFullInfo getFullUserInfo(String id) {
+        return null;
     }
 }
