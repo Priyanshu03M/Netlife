@@ -19,7 +19,7 @@ This service reads/writes:
 - `person` (users)
 - `refresh_token` (refresh tokens linked to a user)
 
-The canonical schema is created by `shared-db` Flyway migrations.
+The canonical schema is created by `shared-db` Flyway migrations, so run `shared-db` at least once before starting `Auth-Service`.
 
 ### Login Flow
 
