@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiRequest } from './api/client';
 import { API_ROUTES } from './apiRoutes';
 import { clearSession, hasSession, getSession } from './auth/session';
+import { AUTH_SESSION_INVALID_EVENT, ensureAuthenticatedSession } from './auth/sessionManager';
 import RegisterForm from './RegisterForm.jsx';
 import LoginForm from './LoginForm.jsx';
 import HomePage from './HomePage.jsx';
@@ -11,14 +12,57 @@ function App() {
   const [pathname, setPathname] = useState(window.location.pathname);
 
   useEffect(() => {
+    let active = true;
+
+    const redirectToLogin = () => {
+      if (window.location.pathname !== '/login') {
+        window.history.pushState({}, '', '/login');
+      }
+
+      if (active) {
+        setPathname('/login');
+        setIsLoggedIn(false);
+      }
+    };
+
+    const validateSession = async () => {
+      if (!hasSession()) {
+        if (active) {
+          setIsLoggedIn(false);
+        }
+        return;
+      }
+
+      const authenticated = await ensureAuthenticatedSession();
+      if (!active) {
+        return;
+      }
+
+      setIsLoggedIn(authenticated);
+
+      if (!authenticated) {
+        redirectToLogin();
+      }
+    };
+
     const handlePopState = () => {
       setPathname(window.location.pathname);
-      setIsLoggedIn(hasSession());
+      void validateSession();
+    };
+
+    const handleSessionInvalid = () => {
+      clearSession();
+      redirectToLogin();
     };
 
     window.addEventListener('popstate', handlePopState);
+    window.addEventListener(AUTH_SESSION_INVALID_EVENT, handleSessionInvalid);
+    void validateSession();
+
     return () => {
+      active = false;
       window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener(AUTH_SESSION_INVALID_EVENT, handleSessionInvalid);
     };
   }, []);
 
@@ -82,13 +126,12 @@ function App() {
       onLoginClick={() => handleAuthButtonClick('/login')}
       onRegisterClick={() => handleAuthButtonClick('/register')}
       authPanel={pathname === '/register'
-        ? <RegisterForm />
+        ? <RegisterForm onLoginClick={() => handleAuthButtonClick('/login')} />
         : pathname === '/login'
-          ? <LoginForm onLoginSuccess={handleLoginSuccess} />
+          ? <LoginForm onLoginSuccess={handleLoginSuccess} onRegisterClick={() => handleAuthButtonClick('/register')} />
           : null}
     />
   );
 }
 
 export default App;
-

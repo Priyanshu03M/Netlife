@@ -11,6 +11,7 @@ const initialValues = {
 };
 
 function UploadModal({ isOpen, onClose, onUploadSuccess }) {
+  const modalRef = React.useRef(null);
   const [values, setValues] = useState(initialValues);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -25,6 +26,9 @@ function UploadModal({ isOpen, onClose, onUploadSuccess }) {
       return;
     }
 
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
     setValues(initialValues);
     setError('');
     setSuccessMessage('');
@@ -33,6 +37,25 @@ function UploadModal({ isOpen, onClose, onUploadSuccess }) {
     setProgress(0);
     setVideoId('');
     setAbortController(null);
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        handleClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    // Best-effort: focus the dialog for keyboard users.
+    window.setTimeout(() => {
+      modalRef.current?.focus?.();
+    }, 0);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
   }, [isOpen]);
 
   if (!isOpen) {
@@ -95,7 +118,6 @@ function UploadModal({ isOpen, onClose, onUploadSuccess }) {
         title,
         description,
         username,
-        token: session.accessToken,
         signal: controller.signal
       });
 
@@ -142,10 +164,12 @@ function UploadModal({ isOpen, onClose, onUploadSuccess }) {
   return (
     <div className="modal-backdrop" role="presentation" onClick={handleClose}>
       <section
+        ref={modalRef}
         className="modal-card"
         role="dialog"
         aria-modal="true"
         aria-labelledby="upload-title"
+        tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="modal-header">

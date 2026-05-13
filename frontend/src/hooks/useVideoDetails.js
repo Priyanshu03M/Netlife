@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchVideoMetadata, fetchVideoPlaylist } from '../api/videos';
+import { getDemoVideoById } from '../demo/demoVideos';
 
 export function useVideoDetails(videoId) {
   const [metadata, setMetadata] = useState(null);
@@ -11,6 +12,15 @@ export function useVideoDetails(videoId) {
   useEffect(() => {
     if (!videoId) {
       setMetadata(null);
+      setPlaylistText('');
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
+    const demoVideo = getDemoVideoById(videoId);
+    if (demoVideo) {
+      setMetadata(demoVideo);
       setPlaylistText('');
       setLoading(false);
       setError(null);
@@ -79,4 +89,3 @@ export function useVideoDetails(videoId) {
     error
   };
 }
-

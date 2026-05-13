@@ -45,17 +45,22 @@ All API endpoints are defined in [`src/apiRoutes.js`](src/apiRoutes.js):
   - `POST /auth/refresh`
   - `POST /auth/logout`
 - Video delivery (via gateway `:8765`, public):
-  - `GET /videos/feed` (returns IDs)
+  - `GET /videos/feed/trending` (returns IDs)
+  - `GET /videos/{username}/feed/me` (returns IDs)
+  - `GET /videos/{username}/feed/recommendation` (returns IDs)
   - `GET /videos/{id}` (metadata)
   - `GET /videos/{id}/play` (returns an HLS `index.m3u8` playlist whose `.ts` entries are already signed URLs)
 - Upload (initiate via gateway `:8765`, protected):
   - `POST /videos/initiate-upload` (requires `Authorization: Bearer <jwt>`)
+ - User (mixed):
+  - `GET /users/{userId}/videos` (via gateway `:8765`)
+  - `DELETE /users/{userId}/videos/{videoId}` (direct to `User-Service` `:8084`)
 
 Upload is a 3-step flow implemented by [`src/UploadModal.jsx`](src/UploadModal.jsx):
 
 1. Initiate upload:
    - calls `POST /videos/initiate-upload` through the gateway with JWT
-   - sends `X-Client-ID` (derived from the JWT claim `userId` when available)
+   - sends `{ username, title, description }`
    - receives `{ videoId, url }`
 2. Upload bytes:
    - does a `PUT` directly to the returned pre-signed MinIO URL via `XMLHttpRequest` (progress bar)

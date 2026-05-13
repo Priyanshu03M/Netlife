@@ -7,8 +7,28 @@ import Sidebar from './Sidebar.jsx';
 import VideoCard from './VideoCard.jsx';
 import UploadModal from './UploadModal.jsx';
 import HlsPlayer from './HlsPlayer.jsx';
+import StatusPanel from './StatusPanel.jsx';
+import ProfilePage from './ProfilePage.jsx';
+import { DEMO_VIDEO_IDS, getDemoVideoSrc } from './demo/demoVideos';
 
 const skeletonItems = Array.from({ length: 6 }, (_, index) => index);
+
+function getUniqueVideos(videos) {
+  if (!Array.isArray(videos) || videos.length === 0) {
+    return [];
+  }
+
+  const seen = new Set();
+  return videos.filter((video) => {
+    const id = typeof video?.id === 'string' ? video.id : '';
+    if (!id || seen.has(id)) {
+      return false;
+    }
+
+    seen.add(id);
+    return true;
+  });
+}
 
 function getVideoErrorContent(error) {
   if (!error) {
@@ -50,15 +70,20 @@ function HomePage({
   const [searchTerm, setSearchTerm] = useState('');
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const deferredSearchTerm = useDeferredValue(searchTerm.trim());
+  const session = getSession();
   const {
     videos,
+    continueWatchingVideos,
+    recommendedVideos,
+    trendingVideos,
     loading,
     error,
-    reload
+    reload,
+    offlineMode
   } = useVideos({
     query: deferredSearchTerm,
+    username: session.username,
   });
-  const session = getSession();
   const videoErrorContent = getVideoErrorContent(error);
   const handleHomeClick = useCallback(() => {
     onNavigate('/');
@@ -72,6 +97,12 @@ function HomePage({
   const handleOpenVideo = useCallback((videoId) => {
     onNavigate(`/watch/${videoId}`);
   }, [onNavigate]);
+  const handleProfileClick = useCallback(() => {
+    if (!isLoggedIn) {
+      return;
+    }
+    onNavigate('/profile');
+  }, [isLoggedIn, onNavigate]);
 
   const selectedVideoId = useMemo(() => (
     pathname.startsWith('/watch/') ? pathname.replace('/watch/', '') : ''
@@ -83,24 +114,57 @@ function HomePage({
     error: selectedError
   } = useVideoDetails(selectedVideoId);
   const isAuthRoute = pathname === '/login' || pathname === '/register';
-  const authTitle = pathname === '/register' ? 'Create your workspace access' : 'Welcome back';
+  const authTitle = pathname === '/register' ? 'Create account' : 'Welcome';
   const authSubtitle = pathname === '/register'
-    ? 'Set up a new Netlife account with the correct role and credentials.'
-    : 'Enter your credentials to access the dashboard and manage videos.';
+    ? 'Create an account to start uploading and managing videos.'
+    : 'Log in to your account to continue.';
   const profileName = session.username || 'Guest';
-  const videoCards = useMemo(() => (
-    videos.map((video) => (
+  const isSearching = Boolean(deferredSearchTerm);
+  const uniqueVideos = useMemo(() => getUniqueVideos(videos), [videos]);
+  const searchCards = useMemo(() => (
+    uniqueVideos.map((video) => (
       <VideoCard
         key={video.id}
         video={video}
         onOpen={handleOpenVideo}
       />
     ))
-  ), [handleOpenVideo, videos]);
+  ), [handleOpenVideo, uniqueVideos]);
+  const continueWatchingCards = useMemo(() => (
+    (isSearching ? [] : continueWatchingVideos).map((video, index) => (
+      <VideoCard
+        key={`${video.id}-continue-${index}`}
+        video={video}
+        onOpen={handleOpenVideo}
+      />
+    ))
+  ), [continueWatchingVideos, handleOpenVideo, isSearching]);
+  const recommendedCards = useMemo(() => (
+    (isSearching ? [] : recommendedVideos).map((video, index) => (
+      <VideoCard
+        key={`${video.id}-recommended-${index}`}
+        video={video}
+        onOpen={handleOpenVideo}
+      />
+    ))
+  ), [handleOpenVideo, isSearching, recommendedVideos]);
+  const trendingCards = useMemo(() => (
+    (isSearching ? [] : trendingVideos).map((video, index) => (
+      <VideoCard
+        key={`${video.id}-trending-${index}`}
+        video={video}
+        onOpen={handleOpenVideo}
+      />
+    ))
+  ), [handleOpenVideo, isSearching, trendingVideos]);
+  const selectedDemoSrc = useMemo(() => getDemoVideoSrc(selectedVideoId), [selectedVideoId]);
+  const offlineDemoSrc = useMemo(() => getDemoVideoSrc(DEMO_VIDEO_IDS.ME), []);
+  const isSelectedNetworkError = Boolean(selectedError?.code === 'NETWORK_ERROR');
 
   return (
     <div className="shell">
       <Navbar
+        variant={isAuthRoute && !isLoggedIn ? 'auth' : 'default'}
         isLoggedIn={isLoggedIn}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
@@ -108,12 +172,15 @@ function HomePage({
         onLoginClick={onLoginClick}
         onRegisterClick={onRegisterClick}
         onUploadClick={handleUploadClick}
+        onProfileClick={handleProfileClick}
         onLogout={onLogout}
         avatarLabel={getAvatarLabel(profileName === 'Guest' ? 'guest' : session.username)}
         profileName={profileName}
       />
-      <div className="shell-body">
-        <Sidebar pathname={pathname} onNavigate={onNavigate} />
+      <div className={isAuthRoute && !isLoggedIn ? 'shell-body shell-body-no-sidebar' : 'shell-body'}>
+        {isAuthRoute && !isLoggedIn ? null : (
+          <Sidebar pathname={pathname} onNavigate={onNavigate} />
+        )}
         <main className="content-area">
           {pathname.startsWith('/watch/') ? (
             <section className="watch-placeholder">
@@ -124,24 +191,47 @@ function HomePage({
               >
                 Back to home
               </button>
-              <div className="watch-card">
-                {selectedLoading ? (
-                  <div className="watch-player-placeholder">Loading video...</div>
-                ) : selectedError ? (
-                  <div className="watch-player-placeholder">
-                    Failed to load playback: {selectedError.message || 'Unknown error'}
-                  </div>
-                ) : playlistUrl ? (
-                  <HlsPlayer src={playlistUrl} />
-                ) : (
-                  <div className="watch-player-placeholder">No playback source available.</div>
-                )}
-                <h1 className="watch-title">
-                  {selectedVideo?.title || 'Video details will appear here'}
-                </h1>
-                {selectedVideo?.channelName ? (
-                  <p className="video-channel">{selectedVideo.channelName}</p>
-                ) : null}
+	              <div className="watch-card">
+	                {selectedLoading ? (
+	                  <div className="watch-player-placeholder">Loading video...</div>
+	                ) : playlistUrl ? (
+	                  <HlsPlayer src={playlistUrl} />
+	                ) : selectedDemoSrc ? (
+	                  <div className="watch-player-shell">
+	                    <video
+	                      className="watch-player"
+	                      controls
+	                      preload="metadata"
+	                      src={selectedDemoSrc}
+	                    />
+	                  </div>
+	                ) : isSelectedNetworkError && offlineDemoSrc ? (
+	                  <div className="watch-player-shell">
+	                    <video
+	                      className="watch-player"
+	                      controls
+	                      preload="metadata"
+	                      src={offlineDemoSrc}
+	                    />
+	                  </div>
+	                ) : selectedError ? (
+	                  <div className="watch-player-placeholder">
+	                    Failed to load playback: {selectedError.message || 'Unknown error'}
+	                  </div>
+	                ) : (
+	                  <div className="watch-player-placeholder">No playback source available.</div>
+	                )}
+	                <h1 className="watch-title">
+	                  {selectedVideo?.title || 'Video details will appear here'}
+	                </h1>
+	                {isSelectedNetworkError ? (
+	                  <p className="helper-text watch-helper-error">
+	                    Backend unreachable. Showing offline playback when available.
+	                  </p>
+	                ) : null}
+	                {selectedVideo?.channelName ? (
+	                  <p className="video-channel">{selectedVideo.channelName}</p>
+	                ) : null}
                 <p className="watch-meta">
                   {selectedVideo
                     ? `${selectedVideo.views} view${selectedVideo.views === 1 ? '' : 's'}`
@@ -153,80 +243,53 @@ function HomePage({
               </div>
             </section>
           ) : isAuthRoute && !isLoggedIn ? (
-            <section className="auth-inline-layout">
-              <aside className="auth-hero">
-                <span className="section-badge">Video platform</span>
-                <h1 className="auth-hero-title">
-                  Publish, manage, and explore your Netlife content in one place.
-                </h1>
-                <p className="auth-hero-text">
-                  A lightweight creator surface with clean uploads, searchable feeds, and a focused
-                  playback workflow.
-                </p>
-                <div className="auth-feature-list">
-                  <div className="auth-feature-item">
-                    <strong>Guest browsing</strong>
-                    <span>Open the homepage first and explore videos before logging in.</span>
+            <section className="auth-centered" aria-label="Authentication">
+              <div className="auth-split-card">
+                <aside className="auth-split-hero" aria-hidden="true">
+                  <div className="auth-hero-brand">
+                    <span className="brand-mark auth-hero-mark" />
+                    <div className="auth-hero-brand-copy">
+                      <div className="auth-hero-brand-name">NETLIFE</div>
+                      <div className="auth-hero-brand-tagline">Media dashboard</div>
+                    </div>
                   </div>
-                  <div className="auth-feature-item">
-                    <strong>Fast auth flow</strong>
-                    <span>Use the navbar to switch between registration and login instantly.</span>
-                  </div>
-                  <div className="auth-feature-item">
-                    <strong>Upload ready</strong>
-                    <span>Upload actions appear as soon as a valid user session is available.</span>
-                  </div>
-                </div>
-              </aside>
+                  <p className="auth-hero-fineprint">
+                    Stream, upload, and manage video content in one focused workspace.
+                  </p>
+                </aside>
 
-              <section className="card auth-panel">
-                <header className="card-header">
-                  <span className="section-badge">
-                    {pathname === '/register' ? 'Register' : 'Sign in'}
-                  </span>
-                  <h2 className="card-title">{authTitle}</h2>
-                  <p className="card-subtitle">{authSubtitle}</p>
-                  <div className="auth-toggle">
-                    <button
-                      type="button"
-                      className={`auth-toggle-button ${pathname === '/register' ? 'auth-toggle-button-active' : ''}`}
-                      onClick={onRegisterClick}
-                    >
-                      Register
-                    </button>
-                    <button
-                      type="button"
-                      className={`auth-toggle-button ${pathname === '/login' ? 'auth-toggle-button-active' : ''}`}
-                      onClick={onLoginClick}
-                    >
-                      Login
-                    </button>
-                  </div>
-                </header>
-
-                {authPanel}
-              </section>
+                <section className="auth-split-panel">
+                  <header className="auth-panel-header">
+                    <h1 className="auth-panel-title">{authTitle}</h1>
+                    <p className="auth-panel-subtitle">{authSubtitle}</p>
+                  </header>
+                  {authPanel}
+                </section>
+              </div>
             </section>
+          ) : pathname === '/profile' && isLoggedIn ? (
+            <ProfilePage
+              userId={session.userId}
+              username={session.username}
+              onOpenVideo={handleOpenVideo}
+            />
           ) : (
             <>
-              <header className="content-header">
-                <div className="content-heading">
-                  <span className="section-badge">Feed</span>
-                  <h1 className="content-title">Recommended</h1>
-                  <p className="content-subtitle">
-                    Browse the latest uploaded videos from your Netlife workspace.
-                  </p>
-                </div>
-                <div className="content-summary">
-                  <div className="content-summary-value">{videos.length}</div>
-                  <div className="content-summary-label">
-                    {deferredSearchTerm ? 'results in this query' : 'videos loaded'}
-                  </div>
-                </div>
-              </header>
+	              {offlineMode ? (
+	                <div className="inline-banner" role="status" aria-live="polite">
+	                  <strong>Offline mode.</strong> Backend is unreachable, showing the local demo video.
+	                  <button
+	                    type="button"
+	                    className="ghost-button inline-banner-action"
+	                    onClick={() => reload()}
+	                  >
+	                    Retry backend
+	                  </button>
+	                </div>
+	              ) : null}
 
-              {loading ? (
-                <section className="video-grid" aria-label="Loading videos">
+	              {loading ? (
+	                <section className="video-grid" aria-label="Loading videos">
                   {skeletonItems.map((index) => (
                     <div className="video-card skeleton-card" key={index}>
                       <div className="skeleton skeleton-thumb" />
@@ -236,34 +299,78 @@ function HomePage({
                         <div className="skeleton skeleton-line skeleton-line-short" />
                       </div>
                     </div>
-                  ))}
+                    ))}
                 </section>
               ) : error ? (
-                <section className="status-panel">
-                  <h2 className="status-title">{videoErrorContent.title}</h2>
-                  <p className="status-text">{videoErrorContent.description}</p>
+                <StatusPanel
+                  badge="Error"
+                  title={videoErrorContent.title}
+                  description={videoErrorContent.description}
+                >
                   <button
                     type="button"
-                    className="primary-button"
+                    className="primary-button primary-button-inline"
                     onClick={() => {
                       reload();
                     }}
                   >
                     Retry
                   </button>
-                </section>
-              ) : videos.length === 0 ? (
-                <section className="status-panel">
-                  <h2 className="status-title">No videos found</h2>
-                  <p className="status-text">
-                    {deferredSearchTerm
-                      ? `No videos matched "${deferredSearchTerm}".`
-                      : 'The backend returned an empty list.'}
-                  </p>
-                </section>
+                </StatusPanel>
+              ) : uniqueVideos.length === 0 ? (
+                <StatusPanel
+                  badge="Empty"
+                  title="No videos found"
+                  description={deferredSearchTerm
+                    ? `No videos matched "${deferredSearchTerm}".`
+                    : 'The backend returned an empty list.'}
+                />
               ) : (
                 <>
-                  <section className="video-grid">{videoCards}</section>
+                  {!isSearching && continueWatchingVideos.length > 0 ? (
+                    <section className="content-section" aria-label="Continue watching">
+                      <div className="section-header">
+                        <div className="section-header-copy">
+                          <h2 className="section-title">Continue Watching</h2>
+                        </div>
+                      </div>
+                      <div className="video-grid video-grid-featured" role="list">
+                        {continueWatchingCards}
+                      </div>
+                    </section>
+                  ) : null}
+
+                  {!isSearching && recommendedVideos.length > 0 ? (
+                    <section className="content-section" aria-label="Recommended videos">
+                      <div className="section-header">
+                        <div className="section-header-copy">
+                          <h2 className="section-title">Recommended</h2>
+                        </div>
+                      </div>
+                      <div className="video-grid video-grid-featured" role="list">
+                        {recommendedCards}
+                      </div>
+                    </section>
+                  ) : null}
+
+                  {isSearching ? (
+                    <section className="content-section" aria-label="Search results">
+                      <div className="video-grid video-grid-search">
+                        {searchCards}
+                      </div>
+                    </section>
+                  ) : (
+                    <section className="content-section" aria-label="Trending videos">
+                      <div className="section-header">
+                        <div className="section-header-copy">
+                          <h2 className="section-title">Trending</h2>
+                        </div>
+                      </div>
+                      <div className="video-grid video-grid-featured" role="list">
+                        {trendingCards}
+                      </div>
+                    </section>
+                  )}
                 </>
               )}
             </>

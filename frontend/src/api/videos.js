@@ -1,6 +1,12 @@
 import { apiRequest, ApiError } from './client';
 import { API_ROUTES } from '../apiRoutes';
 
+export const VIDEO_FEED_SECTIONS = {
+  ME: 'me',
+  RECOMMENDATION: 'recommendation',
+  TRENDING: 'trending'
+};
+
 export function normalizeVideoMetadata(payload, fallbackId = '') {
   if (!payload || typeof payload !== 'object') {
     return null;
@@ -14,6 +20,7 @@ export function normalizeVideoMetadata(payload, fallbackId = '') {
   const duration = typeof payload.duration === 'number' ? payload.duration : null;
   const thumbnailUrl = typeof payload.thumbnailUrl === 'string' ? payload.thumbnailUrl : '';
   const channelName = typeof payload.channelName === 'string' ? payload.channelName : '';
+  const createdAt = typeof payload.createdAt === 'string' ? payload.createdAt.trim() : '';
 
   if (!id) {
     return null;
@@ -27,7 +34,8 @@ export function normalizeVideoMetadata(payload, fallbackId = '') {
     size,
     duration,
     thumbnailUrl: thumbnailUrl.trim() || null,
-    channelName: channelName.trim() || ''
+    channelName: channelName.trim() || '',
+    createdAt: createdAt || null
   };
 }
 
@@ -56,13 +64,7 @@ function normalizeVideoFeedItem(value) {
   return normalizeVideoMetadata(value, id.trim()) || { id: id.trim() };
 }
 
-export async function fetchVideoFeed({ signal } = {}) {
-  const payload = await apiRequest(API_ROUTES.videoFeed, {
-    method: 'GET',
-    includeAuth: false,
-    signal
-  });
-
+function normalizeFeedPayload(payload) {
   if (!Array.isArray(payload)) {
     throw new ApiError('Malformed feed response: expected an array.', {
       code: 'MALFORMED_DATA',
@@ -95,6 +97,48 @@ export async function fetchVideoFeed({ signal } = {}) {
   }
 
   return { kind: 'ids', ids: items.map((item) => item.id) };
+}
+
+function resolveVideoFeedRoute({ section, username }) {
+  const cleanUsername = typeof username === 'string' ? username.trim() : '';
+
+  switch (section) {
+    case VIDEO_FEED_SECTIONS.ME:
+      if (!cleanUsername) {
+        throw new ApiError('Username is required for the personal feed.', {
+          code: 'VALIDATION_ERROR',
+          kind: 'validation'
+        });
+      }
+      return API_ROUTES.videoFeedMe(cleanUsername);
+    case VIDEO_FEED_SECTIONS.RECOMMENDATION:
+      if (!cleanUsername) {
+        throw new ApiError('Username is required for the recommendation feed.', {
+          code: 'VALIDATION_ERROR',
+          kind: 'validation'
+        });
+      }
+      return API_ROUTES.videoFeedRecommendation(cleanUsername);
+    case VIDEO_FEED_SECTIONS.TRENDING:
+      return API_ROUTES.videoFeedTrending;
+    default:
+      throw new ApiError('Unknown video feed section.', {
+        code: 'VALIDATION_ERROR',
+        kind: 'validation',
+        details: section
+      });
+  }
+}
+
+export async function fetchVideoSectionFeed({ section, username = '', signal } = {}) {
+  const route = resolveVideoFeedRoute({ section, username });
+  const payload = await apiRequest(route, {
+    method: 'GET',
+    includeAuth: false,
+    signal
+  });
+
+  return normalizeFeedPayload(payload);
 }
 
 export async function fetchVideoMetadata(videoId, { signal } = {}) {
@@ -148,11 +192,62 @@ export async function fetchVideoPlaylist(videoId, { signal } = {}) {
   return playlist;
 }
 
+export async function fetchUserUploadedVideoIds(userId, { signal } = {}) {
+  if (!userId) {
+    throw new ApiError('User id is required.', {
+      code: 'VALIDATION_ERROR',
+      kind: 'validation'
+    });
+  }
+
+  const payload = await apiRequest(API_ROUTES.userVideos(userId), {
+    method: 'GET',
+    includeAuth: false,
+    signal
+  });
+
+  if (!Array.isArray(payload)) {
+    throw new ApiError('Malformed user videos response.', {
+      code: 'MALFORMED_DATA',
+      kind: 'validation',
+      details: payload
+    });
+  }
+
+  return payload
+    .filter((value) => typeof value === 'string')
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+export async function deleteUserVideo(userId, videoId, { signal } = {}) {
+  if (!userId || !videoId) {
+    throw new ApiError('User id and video id are required.', {
+      code: 'VALIDATION_ERROR',
+      kind: 'validation'
+    });
+  }
+
+  const payload = await apiRequest(API_ROUTES.deleteUserVideo(userId, videoId), {
+    method: 'DELETE',
+    signal
+  });
+
+  if (typeof payload !== 'boolean') {
+    throw new ApiError('Malformed delete response.', {
+      code: 'MALFORMED_DATA',
+      kind: 'validation',
+      details: payload
+    });
+  }
+
+  return payload;
+}
+
 export async function initiateVideoUpload({
   title,
   description,
   username,
-  token,
   signal
 }) {
   const cleanTitle = typeof title === 'string' ? title.trim() : '';
@@ -175,7 +270,6 @@ export async function initiateVideoUpload({
 
   const payload = await apiRequest(API_ROUTES.videoInitiateUpload, {
     method: 'POST',
-    token,
     headers: {
       'Content-Type': 'application/json'
     },

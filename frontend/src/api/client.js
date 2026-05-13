@@ -1,4 +1,4 @@
-import { getSession } from '../auth/session';
+import { ensureValidAccessToken } from '../auth/sessionManager';
 
 export class ApiError extends Error {
   constructor(message, details = {}) {
@@ -83,13 +83,22 @@ function getStatusCode(status) {
 
 export async function apiRequest(url, options = {}) {
   const {
-    token,
     includeAuth = true,
     headers = {},
     signal,
+    _retryAuth = false,
     ...fetchOptions
   } = options;
-  const accessToken = includeAuth ? (token ?? getSession().accessToken) : '';
+  const accessToken = includeAuth ? await ensureValidAccessToken() : '';
+
+  if (includeAuth && !accessToken) {
+    throw new ApiError('Your session has expired. Please log in again.', {
+      status: 401,
+      code: 'UNAUTHORIZED',
+      kind: 'auth'
+    });
+  }
+
   const requestHeaders = buildHeaders(accessToken, headers);
 
   console.debug('[apiRequest] Sending request', {
@@ -136,6 +145,19 @@ export async function apiRequest(url, options = {}) {
   });
 
   if (!response.ok) {
+    if (includeAuth && response.status === 401 && !_retryAuth) {
+      try {
+        if (await ensureValidAccessToken({ forceRefresh: true })) {
+          return apiRequest(url, {
+            ...options,
+            _retryAuth: true
+          });
+        }
+      } catch {
+        // Session invalidation is handled by the session manager.
+      }
+    }
+
     const statusMeta = getStatusCode(response.status);
     const apiError = isApiEnvelope(payload) ? payload.error : null;
     const message = typeof payload === 'string'

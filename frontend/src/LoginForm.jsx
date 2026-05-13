@@ -13,10 +13,11 @@ const initialErrors = {
   password: ''
 };
 
-function LoginForm({ onLoginSuccess }) {
+function LoginForm({ onLoginSuccess, onRegisterClick }) {
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState(initialErrors);
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [serverMessage, setServerMessage] = useState('');
   const [serverTone, setServerTone] = useState('neutral');
 
@@ -62,6 +63,7 @@ function LoginForm({ onLoginSuccess }) {
     try {
       const body = await apiRequest(API_ROUTES.login, {
         method: 'POST',
+        includeAuth: false,
         headers: {
           'Content-Type': 'application/json'
         },
@@ -97,53 +99,61 @@ function LoginForm({ onLoginSuccess }) {
   };
 
   return (
-    <form className="form" onSubmit={handleSubmit} noValidate>
-      <div className="form-intro">
-        <h3 className="form-title">Account access</h3>
-        <p className="form-copy">Use your username or email and password to continue to the dashboard.</p>
-      </div>
+    <form className="auth-form" onSubmit={handleSubmit} noValidate>
       <div className="form-field">
-        <label htmlFor="username" className="field-label">
+        <label htmlFor="username" className="field-label sr-only">
           Username or Email
         </label>
         <input
           id="username"
           name="username"
           type="text"
-          className={`field-input ${errors.username ? 'field-input-error' : ''}`}
+          className={`auth-input ${errors.username ? 'field-input-error' : ''}`}
           value={values.username}
           onChange={handleChange}
           autoComplete="username"
-          placeholder="Enter your username or email"
+          placeholder="Email or username"
           disabled={submitting}
         />
         {errors.username && <p className="field-error">{errors.username}</p>}
       </div>
 
       <div className="form-field">
-        <label htmlFor="password" className="field-label">
+        <label htmlFor="password" className="field-label sr-only">
           Password
         </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          className={`field-input ${errors.password ? 'field-input-error' : ''}`}
-          value={values.password}
-          onChange={handleChange}
-          autoComplete="current-password"
-          placeholder="Enter your password"
-          disabled={submitting}
-        />
+        <div className="password-field">
+          <input
+            id="password"
+            name="password"
+            type={showPassword ? 'text' : 'password'}
+            className={`auth-input auth-input-with-action ${errors.password ? 'field-input-error' : ''}`}
+            value={values.password}
+            onChange={handleChange}
+            autoComplete="current-password"
+            placeholder="Password"
+            disabled={submitting}
+          />
+          <button
+            type="button"
+            className="password-toggle"
+            onClick={() => setShowPassword((prev) => !prev)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            aria-pressed={showPassword}
+            disabled={submitting}
+          >
+            {showPassword ? 'Hide' : 'Show'}
+          </button>
+        </div>
         {errors.password && <p className="field-error">{errors.password}</p>}
       </div>
 
       <button
         type="submit"
-        className="primary-button"
+        className="primary-button auth-primary"
         disabled={submitting}
       >
-        {submitting ? 'Logging in...' : 'Login'}
+        {submitting ? 'Logging in...' : 'Log in'}
       </button>
 
       {serverMessage && (
@@ -151,6 +161,22 @@ function LoginForm({ onLoginSuccess }) {
           {serverMessage}
         </p>
       )}
+
+      <p className="auth-switch">
+        Don&apos;t have an account?{' '}
+        <button
+          type="button"
+          className="auth-link"
+          onClick={() => {
+            if (typeof onRegisterClick === 'function') {
+              onRegisterClick();
+            }
+          }}
+          disabled={submitting}
+        >
+          Sign up
+        </button>
+      </p>
     </form>
   );
 }

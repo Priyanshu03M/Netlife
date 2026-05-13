@@ -13,10 +13,11 @@ const initialErrors = {
   password: ''
 };
 
-function RegisterForm() {
+function RegisterForm({ onLoginClick }) {
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState(initialErrors);
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [serverMessage, setServerMessage] = useState('');
   const [serverTone, setServerTone] = useState('neutral');
 
@@ -122,68 +123,76 @@ function RegisterForm() {
   };
 
   return (
-    <form className="form" onSubmit={handleSubmit} noValidate>
-      <div className="form-intro">
-        <h3 className="form-title">Workspace setup</h3>
-        <p className="form-copy">Create a user and prepare the account for uploads.</p>
-      </div>
+    <form className="auth-form" onSubmit={handleSubmit} noValidate>
       <div className="form-field">
-        <label htmlFor="username" className="field-label">
+        <label htmlFor="username" className="field-label sr-only">
           Username
         </label>
         <input
           id="username"
           name="username"
           type="text"
-          className={`field-input ${errors.username ? 'field-input-error' : ''}`}
+          className={`auth-input ${errors.username ? 'field-input-error' : ''}`}
           value={values.username}
           onChange={handleChange}
           autoComplete="username"
-          placeholder="Choose a username"
+          placeholder="Username"
           disabled={submitting}
         />
         {errors.username && <p className="field-error">{errors.username}</p>}
       </div>
 
       <div className="form-field">
-        <label htmlFor="email" className="field-label">
+        <label htmlFor="email" className="field-label sr-only">
           Email
         </label>
         <input
           id="email"
           name="email"
           type="email"
-          className={`field-input ${errors.email ? 'field-input-error' : ''}`}
+          className={`auth-input ${errors.email ? 'field-input-error' : ''}`}
           value={values.email}
           onChange={handleChange}
           autoComplete="email"
-          placeholder="name@example.com"
+          placeholder="Email"
           disabled={submitting}
         />
         {errors.email && <p className="field-error">{errors.email}</p>}
       </div>
 
       <div className="form-field">
-        <label htmlFor="password" className="field-label">
+        <label htmlFor="password" className="field-label sr-only">
           Password
         </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          className={`field-input ${errors.password ? 'field-input-error' : ''}`}
-          value={values.password}
-          onChange={handleChange}
-          autoComplete="new-password"
-          placeholder="Create a secure password"
-          disabled={submitting}
-        />
+        <div className="password-field">
+          <input
+            id="password"
+            name="password"
+            type={showPassword ? 'text' : 'password'}
+            className={`auth-input auth-input-with-action ${errors.password ? 'field-input-error' : ''}`}
+            value={values.password}
+            onChange={handleChange}
+            autoComplete="new-password"
+            placeholder="Password"
+            disabled={submitting}
+          />
+          <button
+            type="button"
+            className="password-toggle"
+            onClick={() => setShowPassword((prev) => !prev)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            aria-pressed={showPassword}
+            disabled={submitting}
+          >
+            {showPassword ? 'Hide' : 'Show'}
+          </button>
+        </div>
         {errors.password && <p className="field-error">{errors.password}</p>}
       </div>
 
       <button
         type="submit"
-        className="primary-button"
+        className="primary-button auth-primary"
         disabled={submitting}
       >
         {submitting ? 'Registering...' : 'Register'}
@@ -194,6 +203,22 @@ function RegisterForm() {
           {serverMessage}
         </p>
       )}
+
+      <p className="auth-switch">
+        Already have an account?{' '}
+        <button
+          type="button"
+          className="auth-link"
+          onClick={() => {
+            if (typeof onLoginClick === 'function') {
+              onLoginClick();
+            }
+          }}
+          disabled={submitting}
+        >
+          Log in
+        </button>
+      </p>
     </form>
   );
 }
