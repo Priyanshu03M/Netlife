@@ -39,3 +39,8 @@ On PowerShell:
 ## Local URL
 - Dashboard: `http://localhost:8761`
 - Registry endpoint: `http://localhost:8761/eureka`
+
+Notes:
+
+- Most other services expect `EUREKA_SERVER_URL=http://localhost:8761/eureka` by default.
+- The gateway’s `lb://...` routing requires Eureka to be up.
