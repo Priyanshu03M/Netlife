@@ -32,3 +32,6 @@ Run this once whenever you need to bootstrap or upgrade the DB schema:
 
 It will exit after applying migrations (or keep running briefly depending on Spring lifecycle), and can be re-run safely (Flyway tracks applied versions).
 
+Prereqs:
+
+- A running Postgres instance reachable at `DB_URL` (default `jdbc:postgresql://localhost:5432/netlife`).
