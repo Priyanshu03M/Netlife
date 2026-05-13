@@ -6,8 +6,9 @@ Spring Boot service that delivers HLS video playback by returning an `index.m3u8
 
 - **Playback**: `GET /videos/{id}/play` returns an HLS playlist (`application/vnd.apple.mpegurl`). Segment lines ending with `.ts` are replaced with **pre-signed** MinIO URLs (default expiry: 30 minutes).
 - **Metadata**: `GET /videos/{id}` returns title/description/size/duration/views from Postgres.
-- **Feed**: `GET /videos/feed` returns IDs of videos whose DB `status` is `READY`.
+- **Feeds**: returns lists of video IDs (implementation currently returns the same underlying feed for several endpoints).
 - **View counting**: each playback request publishes a Kafka event; a Kafka consumer increments the `views` column in Postgres.
+- **Delete**: `DELETE /videos/{userId}/{videoId}` marks a video deleted for a given user.
 
 ## How It Works (Flow)
 
@@ -43,7 +44,20 @@ curl -s http://localhost:8083/videos/VIDEO_ID | jq
 ### Feed
 
 ```bash
-curl -s http://localhost:8083/videos/feed | jq
+curl -s http://localhost:8083/videos/feed/trending | jq
+```
+
+Additional feed endpoints implemented:
+
+- `GET /videos/{userId}/feed`
+- `GET /videos/{username}/feed/me`
+- `GET /videos/{username}/feed/recommendation`
+- `GET /videos/feed/trending`
+
+### Delete a user’s video
+
+```bash
+curl -sS -X DELETE "http://localhost:8083/videos/USER_ID/VIDEO_ID"
 ```
 
 ## Dependencies
@@ -95,7 +109,7 @@ create table if not exists videos (
 );
 ```
 
-`/videos/feed` returns only rows where `status` equals `READY` (case-insensitive).
+Feed endpoints return only rows where `status` equals `READY` (case-insensitive).
 
 ## MinIO Object Layout (Expected)
 
@@ -118,6 +132,11 @@ Or build and run:
 ./mvnw -q clean package
 java -jar target/Video-Delivery-Service-0.0.1-SNAPSHOT.jar
 ```
+
+Prereqs:
+
+- Postgres schema must exist (run `shared-db` once).
+- MinIO must contain processed HLS output at `processed/{videoId}/index.m3u8` and `processed/{videoId}/*.ts`.
 
 ## Security
 

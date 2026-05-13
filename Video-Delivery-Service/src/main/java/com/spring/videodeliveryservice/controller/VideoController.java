@@ -3,9 +3,9 @@ package com.spring.videodeliveryservice.controller;
 import com.spring.videodeliveryservice.dto.VideoMetadataResponse;
 import com.spring.videodeliveryservice.service.VideoService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,41 +15,49 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@Slf4j
 @RequestMapping("/videos")
 public class VideoController {
 
     private final VideoService videoService;
 
-    @GetMapping("/{id}/play")
-    public ResponseEntity<String> playVideo(@PathVariable String id) {
-        String playlist = videoService.getSignedPlaylist(id);
-
-        if (playlist == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        videoService.publishViewEvent(id);
+    @GetMapping("/{videoId}/play")
+    public ResponseEntity<String> playVideo(@PathVariable String videoId) {
+        String playlist = videoService.getSignedPlaylist(videoId);
+        videoService.publishViewEvent(videoId);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_TYPE, "application/vnd.apple.mpegurl")
                 .body(playlist);
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<VideoMetadataResponse> getVideo(@PathVariable String id) {
-        VideoMetadataResponse videoMetadataResponse = videoService.getVideoInfo(id);
-
-        if (videoMetadataResponse == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(videoMetadataResponse);
+    @GetMapping("/{videoId}")
+    public ResponseEntity<VideoMetadataResponse> getVideo(@PathVariable String videoId) {
+        return ResponseEntity.ok(videoService.getVideoInfo(videoId));
     }
 
-    @GetMapping("/feed")
-    public ResponseEntity<List<String>> getFeed() {
-        List<String> response = videoService.getFeed();
-        return ResponseEntity.ok().body(response);
+    @GetMapping("/{userId}/feed")
+    public ResponseEntity<List<String>> getUserFeed(@PathVariable String userId) {
+        return ResponseEntity.ok(videoService.getUserFeed(userId));
+    }
+
+    @GetMapping("/{username}/feed/me")
+    public ResponseEntity<List<String>> getMyFeed(@PathVariable String username) {
+        return ResponseEntity.ok(videoService.getFeed());
+    }
+
+    @GetMapping("/{username}/feed/recommendation")
+    public ResponseEntity<List<String>> getRecommendationFeed(@PathVariable String username) {
+        return ResponseEntity.ok(videoService.getFeed());
+    }
+
+    @GetMapping("/feed/trending")
+    public ResponseEntity<List<String>> getTrendingFeed() {
+        return ResponseEntity.ok(videoService.getFeed());
+    }
+
+    @DeleteMapping("/{userId}/{videoId}")
+    public ResponseEntity<Boolean> deleteUserVideo(@PathVariable String userId, @PathVariable String videoId) {
+        Boolean response = videoService.markVideoDeleted(userId, videoId);
+        return ResponseEntity.ok(response);
     }
 }
