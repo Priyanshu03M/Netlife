@@ -15,10 +15,10 @@ public class GatewayRoutesConfig {
 
     @Bean
     RouterFunction<ServerResponse> gatewayRoutes() {
-        return route("auth-service")
-                .route(RequestPredicates.path("/auth/**"), http())
-                .filter(lb("AUTHSERVICE"))
-                .build()
+        return          route("auth-service")
+                                .route(RequestPredicates.path("/auth/**"), http())
+                                .filter(lb("AUTHSERVICE"))
+                                .build()
                 .and(
                         route("video-upload-service")
                                 .route(RequestPredicates.POST("/videos/initiate-upload"), http())
@@ -28,13 +28,13 @@ public class GatewayRoutesConfig {
                 )
                 .and(
                         route("video-delivery-service")
-                                .route(RequestPredicates.GET("/videos/**"), http())
+                                .route(RequestPredicates.path("/videos/**"), http())
                                 .filter(lb("VIDEODELIVERYSERVICE"))
                                 .build()
                 )
                 .and(
                         route("user-service")
-                                .route(RequestPredicates.GET("/users/**"), http())
+                                .route(RequestPredicates.path("/users/**"), http())
                                 .filter(lb("USERSERVICE"))
                                 .build()
                 );

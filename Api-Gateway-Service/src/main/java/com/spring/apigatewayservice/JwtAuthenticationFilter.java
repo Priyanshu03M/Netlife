@@ -8,6 +8,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -21,18 +22,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @Component
+@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Value("${jwt.secret}")
     private String SECRET;
 
-    private static final List<String> PUBLIC_URLS = List.of(
-            "/auth/login",
-            "/auth/register",
-            "/auth/refresh",
-            "/auth/logout",
-            "/auth/pages"
-    );
+    private static final List<String> PUBLIC_URLS = List.of("/auth/login", "/auth/register", "/auth/refresh", "/auth/logout", "/auth/pages");
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
