@@ -29,7 +29,7 @@ Implemented in `UploadController` -> `UploadService.uploadVideoMetadata(...)`.
 
 Notes:
 
-- The controller uses the `X-Client-ID` header as `userId` (stored in `videos.user_id`). In the shared schema, `videos.user_id` has a foreign key to `person.id`, so in practice this header should be the authenticated user id (today it is still passed explicitly as a header).
+- The controller looks up the uploader by `username` by calling `User-Service` (`GET /users/{username}/info`) and uses the returned `id` as `videos.user_id`.
 
 ### 2) Client Uploads Bytes to MinIO
 
@@ -71,6 +71,7 @@ Implemented in `UploadController` -> `UploadService.completeUpload(...)`.
 
 - Java 17
 - Docker + Docker Compose
+- Postgres schema must exist (run `shared-db` once)
 
 ### Start Dependencies (Kafka + MinIO)
 
@@ -121,6 +122,11 @@ Create it via the MinIO Console:
 
 By default the service runs on `http://localhost:8081`.
 
+## Notes
+
+- In normal usage the frontend talks to this service through `Api-Gateway-Service` (`POST /videos/initiate-upload`, `POST /videos/complete-upload`).
+- `POST /videos/initiate-upload` requires `User-Service` to be reachable (directly or via Eureka) because it fetches user info by username.
+
 ## Configuration
 
 Defaults are defined in `src/main/resources/application.properties`. Common overrides:
@@ -156,6 +162,7 @@ Request:
 
 ```json
 {
+  "username": "alice",
   "title": "My Video",
   "description": "Optional description"
 }
@@ -165,9 +172,8 @@ Example:
 
 ```bash
 curl -sS -X POST "http://localhost:8081/videos/initiate-upload" \
-  -H "X-Client-ID: <person-id>" \
   -H "Content-Type: application/json" \
-  -d '{"title":"My Video","description":"Optional description"}'
+  -d '{"username":"alice","title":"My Video","description":"Optional description"}'
 ```
 
 Response (example):
@@ -226,7 +232,7 @@ On handled errors (e.g., bad request), the API returns:
 
 ## Current Limitations
 
-- Authentication/authorization is not enforced inside this service (`SecurityConfig` permits all requests). `UploadController` uses `X-Client-ID` as `userId` instead of deriving it from a JWT claim.
+- Authentication/authorization is not enforced inside this service (`SecurityConfig` permits all requests). Authentication is intended to be enforced at `Api-Gateway-Service`.
 - This service does not create or migrate DB schema (`spring.jpa.hibernate.ddl-auto=none`). Use `shared-db` to apply the Flyway migrations.
 - Upload is single-object PUT (not multipart). The service generates pre-signed **PUT** URLs only.
 

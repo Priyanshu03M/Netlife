@@ -23,7 +23,7 @@ public class UploadController {
     @PostMapping("/initiate-upload")
     public ResponseEntity<UploadResponseDto> upload(@RequestBody UploadVideoRequestDto request) {
         UserInfo userInfo = userApiService.getUserInfo(request.getUsername());
-        UploadBackendRequest uploadBackendRequest = UploadBackendRequest.builder().title(request.getTitle()).description(request.getDescription()).userId(userInfo.getId()).username(request.getUsername()).build();
+        UploadBackendRequest uploadBackendRequest = UploadBackendRequest.builder().title(request.getTitle()).description(request.getDescription()).userId(userInfo.getId()).username(userInfo.getUsername()).build();
         log.info("Received upload request: userId={}, title='{}'", userInfo.getId(), request.getTitle());
         UploadResponseDto response = uploadService.uploadVideoMetadata(uploadBackendRequest);
         log.info("Upload request completed: videoId={}, videoUrl={}, status={}", response.getVideoId(), response.getUrl(), response.getStatus());
