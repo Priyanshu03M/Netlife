@@ -34,7 +34,6 @@ public class ProcessingService {
     @Value("${minio.bucket}")
     private String bucketName;
 
-    @Transactional
     public void initiateProcessing(CompleteVideoRequestDto payload) {
         Optional<VideoMetadata> videoMetadata = videoMetadataRepository.findById(payload.getVideoId());
         if (videoMetadata.isPresent() && videoMetadata.get().getStatus().equals(STATUS_UPLOADED)) {

@@ -70,6 +70,32 @@ Notes:
 
 `Video-Processing-Service/docker-compose.yml` provides Kafka + MinIO (no Postgres).
 
+## Quickstart (Local)
+
+1. Start Kafka + MinIO:
+
+```bash
+docker compose up -d
+```
+
+2. Ensure the MinIO bucket exists:
+   - Console: `http://localhost:9001` (`minioadmin` / `minioadmin123`)
+   - Bucket name: `videos`
+
+3. Start Postgres and run `shared-db` migrations (see [`shared-db/README.md`](../shared-db/README.md)).
+
+4. Install FFmpeg (must be available on your shell `PATH`):
+
+```bash
+ffmpeg -version
+```
+
+5. Run the service:
+
+```bash
+./mvnw spring-boot:run
+```
+
 ## Key Configuration
 
 In `src/main/resources/application.properties`:
