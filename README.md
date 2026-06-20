@@ -2,6 +2,9 @@
 
 Netlife is a Spring Boot microservices project for authentication + an event-driven video pipeline (upload -> process -> deliver), wired together through Eureka service discovery and an API gateway.
 
+<img width="3400" height="3844" alt="image" src="https://github.com/user-attachments/assets/98fe1f57-8951-4b6b-8ef0-247a28cf18ab" />
+
+
 ## Services
 
 - `Eureka-Service` (`http://localhost:8761`)
